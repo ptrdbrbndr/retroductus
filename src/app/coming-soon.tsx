@@ -47,9 +47,14 @@ export default function ComingSoon() {
               Retroductus
             </span>
           </div>
-          <a href="https://www.conductus.nl" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            conductus.nl ↗
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/login" data-testid="nav-login" className="text-sm font-medium hover:opacity-80 transition-opacity" style={{ color: '#2EC4B6' }}>
+              Inloggen
+            </a>
+            <a href="https://www.conductus.nl" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+              conductus.nl ↗
+            </a>
+          </div>
         </div>
       </header>
 
@@ -68,7 +73,7 @@ export default function ComingSoon() {
           </div>
 
           {/* Heading */}
-          <h1 className="font-bold text-white leading-[1.05] mb-6"
+          <h1 data-testid="hero-title" className="font-bold text-white leading-[1.05] mb-6"
             style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(3rem, 8vw, 5.5rem)', letterSpacing: '-0.01em' }}>
             Kijk terug.<br />
             <span className="gradient-text">Stuur bij.</span><br />
