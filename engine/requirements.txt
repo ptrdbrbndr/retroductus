@@ -1,8 +1,10 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
+python-multipart==0.0.20
 pm4py==2.7.18
 pandas==2.2.3
 psycopg2-binary==2.9.10
 python-dotenv==1.0.1
 httpx==0.27.2
 supabase==2.9.1
+anthropic==0.40.0

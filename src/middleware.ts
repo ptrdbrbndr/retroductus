@@ -25,7 +25,17 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // Embedded mode: als ?embedded=true in URL staat, sla op als cookie
+  if (searchParams.get('embedded') === 'true') {
+    supabaseResponse.cookies.set('retroductus_embedded', '1', {
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 8, // 8 uur
+    })
+  }
 
   // Protect /app routes
   if (pathname.startsWith('/app') && !user) {

@@ -1,9 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import DfgSection from '@/components/DfgSection'
 
-interface DFGNode { id: string; count: number }
-interface DFGEdge { source: string; target: string; count: number; avg_duration?: number }
+interface DFGNode {
+  id?: string
+  activity?: string
+  count: number
+  avg_duration_sec?: number | null
+}
+interface DFGEdge {
+  source?: string
+  from?: string
+  target?: string
+  to?: string
+  count: number
+  avg_duration?: number
+}
 interface DiscoveryResult {
   dfg_nodes?: DFGNode[]
   dfg_edges?: DFGEdge[]
@@ -31,6 +44,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const startActs = result.start_activities || {}
   const endActs = result.end_activities || {}
 
+  // Normalize nodes: engine kan 'activity' of 'id' gebruiken als naam
+  const normalizedNodes = nodes.map(n => ({
+    activity: n.activity ?? n.id ?? '',
+    count: n.count,
+    avg_duration_sec: n.avg_duration_sec ?? null,
+  }))
+
   return (
     <div data-testid="project-detail">
       <div className="flex items-center justify-between mb-8">
@@ -41,13 +61,31 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <p className="text-gray-400 text-sm mt-1">{new Date(job.created_at).toLocaleDateString('nl-NL', { dateStyle: 'long' })}</p>
         </div>
         {job.status === 'done' && (
-          <Link
-            href={`/app/projects/${job.id}/performance`}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-            style={{ background: 'rgba(74,158,255,0.15)', border: '1px solid rgba(74,158,255,0.3)' }}
-          >
-            Bottleneck analyse
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href={`/app/projects/${job.id}/insights`}
+              data-testid="project-insights-link"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}
+            >
+              AI Insights
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/conformance`}
+              data-testid="project-conformance-link"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
+            >
+              Conformance
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/performance`}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(74,158,255,0.15)', border: '1px solid rgba(74,158,255,0.3)' }}
+            >
+              Bottleneck analyse
+            </Link>
+          </div>
         )}
       </div>
 
@@ -71,7 +109,17 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             ))}
           </div>
 
-          {/* Top paths */}
+          {/* DFG visualisatie */}
+          {normalizedNodes.length > 0 && (
+            <DfgSection
+              nodes={normalizedNodes}
+              edges={edges}
+              startActivities={startActs}
+              endActivities={endActs}
+            />
+          )}
+
+          {/* Top paths tabel */}
           <div data-testid="dfg-edges" className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
               <h2 className="text-white font-medium">Top 20 paden</h2>
@@ -87,8 +135,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <tbody>
                 {edges.map((e, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td className="px-5 py-3 text-gray-300">{e.source}</td>
-                    <td className="px-5 py-3 text-gray-300">{e.target}</td>
+                    <td className="px-5 py-3 text-gray-300">{e.source ?? e.from}</td>
+                    <td className="px-5 py-3 text-gray-300">{e.target ?? e.to}</td>
                     <td className="px-5 py-3 text-right text-white">{e.count}</td>
                   </tr>
                 ))}
@@ -96,7 +144,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </table>
           </div>
 
-          {/* Activities */}
+          {/* Start/eind activiteiten */}
           <div className="grid grid-cols-2 gap-4">
             <div data-testid="start-activities" className="rounded-xl p-5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
               <h3 className="text-white font-medium mb-3">Start activiteiten</h3>
@@ -118,13 +166,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* All nodes */}
+          {/* Alle activiteiten (chips) */}
           <div data-testid="dfg-nodes" className="rounded-xl p-5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <h3 className="text-white font-medium mb-3">Alle activiteiten</h3>
             <div className="flex flex-wrap gap-2">
-              {nodes.map(n => (
-                <span key={n.id} className="px-3 py-1 rounded-full text-sm" style={{ background: 'rgba(74,158,255,0.1)', color: '#4a9eff' }}>
-                  {n.id} <span className="opacity-60">({n.count})</span>
+              {normalizedNodes.map(n => (
+                <span key={n.activity} className="px-3 py-1 rounded-full text-sm" style={{ background: 'rgba(74,158,255,0.1)', color: '#4a9eff' }}>
+                  {n.activity} <span className="opacity-60">({n.count})</span>
                 </span>
               ))}
             </div>

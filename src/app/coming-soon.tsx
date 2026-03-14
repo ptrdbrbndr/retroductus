@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { GitBranch, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 
 export default function ComingSoon() {
   const [email, setEmail] = useState('')
@@ -48,9 +49,9 @@ export default function ComingSoon() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <a href="/login" data-testid="nav-login" className="text-sm font-medium hover:opacity-80 transition-opacity" style={{ color: '#2EC4B6' }}>
+            <Link href="/login" data-testid="nav-login" className="text-sm font-medium hover:opacity-80 transition-opacity" style={{ color: '#2EC4B6' }}>
               Inloggen
-            </a>
+            </Link>
             <a href="https://www.conductus.nl" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
               conductus.nl ↗
             </a>

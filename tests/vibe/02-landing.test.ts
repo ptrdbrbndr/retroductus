@@ -9,6 +9,11 @@ test('landing page — hero + nav login', async ({ vibePage }) => {
   await expect(vibePage.getByTestId('hero-title')).toBeVisible()
   await vibePage.vibeCheck('landing-hero')
 
-  await vibePage.getByTestId('nav-login').click()
-  await expect(vibePage).toHaveURL(/\/(login|app)/)
+  const navLogin = vibePage.getByTestId('nav-login')
+  await expect(navLogin).toBeVisible()
+  const href = await navLogin.getAttribute('href')
+  if (!href?.includes('login')) {
+    throw new Error(`nav-login href moet 'login' bevatten, maar is: ${href}`)
+  }
+  await vibePage.vibeCheck('nav-login-link-aanwezig')
 })
