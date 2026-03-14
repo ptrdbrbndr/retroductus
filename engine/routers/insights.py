@@ -112,8 +112,8 @@ def ai_insights(
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     # Fetch job
-    resp = supabase.table("mining_jobs").select("*").eq("id", req.job_id).single().execute()
-    if not resp.data:
+    resp = supabase.table("mining_jobs").select("*").eq("id", req.job_id).maybe_single().execute()
+    if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Job niet gevonden")
 
     job = resp.data

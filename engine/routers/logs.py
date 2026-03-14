@@ -98,7 +98,7 @@ def get_result(
     _token: str = Security(verify_token),
 ):
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    result = supabase.table("mining_jobs").select("*").eq("id", job_id).single().execute()
-    if not result.data:
+    result = supabase.table("mining_jobs").select("*").eq("id", job_id).maybe_single().execute()
+    if result is None or not result.data:
         raise HTTPException(status_code=404, detail="Job niet gevonden.")
     return result.data

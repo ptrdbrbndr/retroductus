@@ -108,8 +108,8 @@ async def conformance_check(
 ):
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    resp = supabase.table("mining_jobs").select("*").eq("id", job_id).single().execute()
-    if not resp.data:
+    resp = supabase.table("mining_jobs").select("*").eq("id", job_id).maybe_single().execute()
+    if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Job niet gevonden")
 
     job = resp.data
@@ -145,8 +145,8 @@ def get_conformance_result(
 ):
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    resp = supabase.table("mining_jobs").select("conformance_result").eq("id", job_id).single().execute()
-    if not resp.data:
+    resp = supabase.table("mining_jobs").select("conformance_result").eq("id", job_id).maybe_single().execute()
+    if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Job niet gevonden")
 
     result = resp.data.get("conformance_result")
