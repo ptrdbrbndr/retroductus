@@ -3,4 +3,6 @@ node_modules/
 .next/
 dist/
 *.env*.local
+.env
+engine/.env
 .DS_Store

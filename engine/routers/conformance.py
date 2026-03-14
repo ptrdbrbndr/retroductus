@@ -1,6 +1,6 @@
 import os
+import logging
 from fastapi import APIRouter, Security, HTTPException, UploadFile, File, Form
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from supabase import create_client
 import pandas as pd
@@ -8,29 +8,19 @@ import pm4py
 import tempfile
 import json
 
-router = APIRouter()
-security = HTTPBearer()
+from auth import verify_token
 
-MINING_ENGINE_SECRET = os.getenv("MINING_ENGINE_SECRET", "")
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if not MINING_ENGINE_SECRET or credentials.credentials != MINING_ENGINE_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-class ConformanceRequest(BaseModel):
-    job_id: str
 
 
 def _get_event_log_from_job(job: dict):
     """Herstel event log uit mining job resultaat."""
     result = job.get("result") or {}
-    # Gebruik de edges en nodes om een minimal log te reconstrueren
-    # In de praktijk zou je het originele log willen opslaan
-    # Voor nu: gebruik de dfg_edges als activiteiten-sequenties
     nodes = result.get("dfg_nodes", [])
     edges = result.get("dfg_edges", [])
     start_acts = result.get("start_activities", {})
@@ -50,9 +40,7 @@ def _compute_conformance_from_dfg(nodes, edges, start_acts, end_acts, bpmn_activ
     if bpmn_activities:
         model_activities = set(bpmn_activities)
     else:
-        # Gebruik start + end activities als minimaal model
         model_activities = set(start_acts.keys()) | set(end_acts.keys())
-        # Voeg activiteiten toe die op edges staan
         for e in edges:
             src = e.get("from") or e.get("source", "")
             tgt = e.get("to") or e.get("target", "")
@@ -69,19 +57,14 @@ def _compute_conformance_from_dfg(nodes, edges, start_acts, end_acts, bpmn_activ
             "error": "Onvoldoende data voor conformance berekening",
         }
 
-    # Fitness: welk deel van log-activiteiten zit ook in het model?
     matching = log_activities & model_activities
     fitness = len(matching) / len(log_activities) if log_activities else 0
-
-    # Precision: welk deel van model-activiteiten zit ook in de log?
     precision = len(matching) / len(model_activities) if model_activities else 0
 
-    # Afwijkingen: activiteiten in log maar niet in model
     deviations_in_log = [
         {"activity": act, "type": "log_only", "description": f"'{act}' komt voor in de log maar niet in het model"}
         for act in sorted(log_activities - model_activities)
     ]
-    # Activiteiten in model maar niet in log
     deviations_in_model = [
         {"activity": act, "type": "model_only", "description": f"'{act}' staat in het model maar niet in de log"}
         for act in sorted(model_activities - log_activities)
@@ -118,11 +101,9 @@ async def conformance_check(
 
     nodes, edges, start_acts, end_acts = _get_event_log_from_job(job)
 
-    # Parse BPMN activiteiten als bestand meegestuurd
     bpmn_activities = None
     if bpmn_file:
         content = await bpmn_file.read()
-        # Eenvoudige BPMN parse: zoek naar task/serviceTask/userTask names
         import re
         text = content.decode("utf-8", errors="ignore")
         names = re.findall(r'name="([^"]+)"', text)
@@ -130,7 +111,6 @@ async def conformance_check(
 
     result = _compute_conformance_from_dfg(nodes, edges, start_acts, end_acts, bpmn_activities)
 
-    # Sla conformance resultaat op
     supabase.table("mining_jobs").update(
         {"conformance_result": result}
     ).eq("id", job_id).execute()

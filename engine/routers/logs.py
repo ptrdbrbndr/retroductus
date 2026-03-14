@@ -1,27 +1,38 @@
+import concurrent.futures
 import io
 import os
 import tempfile
 import uuid
+import logging
 
 import pandas as pd
 import pm4py
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Security, UploadFile
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client
 
+from auth import verify_token
+from rate_limit import check_rate_limit
 from services.mining import run_discovery
 
-router = APIRouter()
-security = HTTPBearer()
+MINING_TIMEOUT_SECONDS = 120
 
-MINING_ENGINE_SECRET = os.getenv("MINING_ENGINE_SECRET", "")
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
+ALLOWED_CONTENT_TYPES = {"text/csv", "application/xml", "text/xml", "application/octet-stream"}
+ALLOWED_EXTENSIONS = {".csv", ".xes"}
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if not MINING_ENGINE_SECRET or credentials.credentials != MINING_ENGINE_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+# Maximale bestandsgrootte per plan (bytes)
+MAX_FILE_SIZE: dict[str, int] = {
+    "free": 10 * 1024 * 1024,      # 10 MB
+    "starter": 100 * 1024 * 1024,  # 100 MB
+    "pro": 1024 * 1024 * 1024,     # 1 GB
+}
+DEFAULT_MAX_FILE_SIZE = MAX_FILE_SIZE["free"]
 
 
 def _parse_file(filename: str, content: bytes) -> pd.DataFrame:
@@ -46,13 +57,22 @@ def _parse_file(filename: str, content: bytes) -> pd.DataFrame:
         return pd.read_csv(io.BytesIO(content))
 
 
-def _run_analysis(job_id: str, filename: str, content: bytes):
+def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     try:
         supabase.table("mining_jobs").update({"status": "running"}).eq("id", job_id).execute()
 
         df = _parse_file(filename, content)
-        result = run_discovery(df)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_discovery, df)
+            try:
+                result = future.result(timeout=MINING_TIMEOUT_SECONDS)
+            except concurrent.futures.TimeoutError:
+                raise TimeoutError(
+                    f"Analyse timeout bereikt ({MINING_TIMEOUT_SECONDS}s). "
+                    "Probeer met een kleiner event log."
+                )
 
         supabase.table("mining_jobs").update({
             "status": "done",
@@ -61,10 +81,18 @@ def _run_analysis(job_id: str, filename: str, content: bytes):
             "completed_at": "now()",
         }).eq("id", job_id).execute()
 
-    except Exception as exc:
+    except TimeoutError as exc:
+        logger.warning("Analyse timeout voor job %s", job_id)
         supabase.table("mining_jobs").update({
             "status": "error",
             "error_message": str(exc),
+            "completed_at": "now()",
+        }).eq("id", job_id).execute()
+    except Exception as exc:
+        logger.error("Analyse mislukt voor job %s: %s", job_id, exc, exc_info=True)
+        supabase.table("mining_jobs").update({
+            "status": "error",
+            "error_message": "Analyse mislukt. Controleer het bestandsformaat.",
             "completed_at": "now()",
         }).eq("id", job_id).execute()
 
@@ -75,11 +103,28 @@ async def upload_log(
     file: UploadFile = File(...),
     tenant_id: str = Form(...),
     _token: str = Security(verify_token),
-):
-    if not (file.filename.endswith(".csv") or file.filename.endswith(".xes")):
+) -> dict:
+    check_rate_limit(tenant_id)
+
+    # Valideer extensie
+    filename = file.filename or ""
+    ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Alleen CSV en XES bestanden zijn toegestaan.")
 
-    content = await file.read()
+    # Lees bestand in chunks om grootte te controleren
+    content = b""
+    async for chunk in file:
+        content += chunk
+        if len(content) > DEFAULT_MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Bestand te groot. Maximum is {DEFAULT_MAX_FILE_SIZE // (1024 * 1024)} MB.",
+            )
+
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Leeg bestand geüpload.")
+
     job_id = str(uuid.uuid4())
 
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -88,7 +133,7 @@ async def upload_log(
         "status": "pending",
     }).execute()
 
-    background_tasks.add_task(_run_analysis, job_id, file.filename, content)
+    background_tasks.add_task(_run_analysis, job_id, filename, content)
     return {"job_id": job_id}
 
 
@@ -96,7 +141,7 @@ async def upload_log(
 def get_result(
     job_id: str,
     _token: str = Security(verify_token),
-):
+) -> dict:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     result = supabase.table("mining_jobs").select("*").eq("id", job_id).maybe_single().execute()
     if result is None or not result.data:

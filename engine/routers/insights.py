@@ -1,11 +1,12 @@
 import os
 import json
-import hashlib
-from fastapi import APIRouter, Security, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from supabase import create_client
+
+from plan_check import require_pro_plan
 
 try:
     import anthropic
@@ -13,14 +14,16 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-router = APIRouter()
-security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
-MINING_ENGINE_SECRET = os.getenv("MINING_ENGINE_SECRET", "")
+router = APIRouter()
+
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
+# Prompt gebruikt alleen geaggregeerde statistieken — nooit ruwe event data
+# om prompt injection te voorkomen
 PROMPT_TEMPLATE = """Je bent een expert process mining consultant. Analyseer de volgende resultaten van een DFG (Directly-Follows Graph) process mining analyse en geef concrete, actionable insights in het Nederlands.
 
 ## Process Mining Resultaten
@@ -54,17 +57,16 @@ Geef een gestructureerde analyse met:
 Wees specifiek en gebruik de daadwerkelijke activiteitsnamen uit de data."""
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if not MINING_ENGINE_SECRET or credentials.credentials != MINING_ENGINE_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
 class InsightsRequest(BaseModel):
     job_id: str
     force_refresh: bool = False
 
 
 def _build_prompt(result: dict) -> str:
+    """
+    Bouwt een prompt met alleen geaggregeerde statistieken.
+    Ruwe event data wordt NOOIT naar Claude gestuurd om prompt injection te voorkomen.
+    """
     nodes = result.get("dfg_nodes", [])
     edges = result.get("dfg_edges", [])
     start_acts = result.get("start_activities", {})
@@ -95,23 +97,18 @@ def _build_prompt(result: dict) -> str:
     )
 
 
-def _cache_key(job_id: str) -> str:
-    return hashlib.sha256(f"insights:{job_id}".encode()).hexdigest()[:16]
-
-
 @router.post("/ai")
 def ai_insights(
     req: InsightsRequest,
-    _token: str = Security(verify_token),
+    user_id: str = Depends(require_pro_plan),
 ):
     if not ANTHROPIC_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Anthropic package not installed")
+        raise HTTPException(status_code=503, detail="Anthropic pakket niet beschikbaar")
     if not ANTHROPIC_API_KEY:
-        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY niet geconfigureerd")
+        raise HTTPException(status_code=503, detail="AI-inzichten zijn momenteel niet beschikbaar")
 
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    # Fetch job
     resp = supabase.table("mining_jobs").select("*").eq("id", req.job_id).maybe_single().execute()
     if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Job niet gevonden")
@@ -120,7 +117,7 @@ def ai_insights(
     if job.get("status") != "done":
         raise HTTPException(status_code=400, detail="Analyse nog niet afgerond")
 
-    # Check cache (stored in job insights_cache field)
+    # Cache ophalen
     if not req.force_refresh and job.get("insights_cache"):
         cached = job["insights_cache"]
 
@@ -134,11 +131,11 @@ def ai_insights(
     prompt = _build_prompt(result)
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    full_text = []
+    full_text: list[str] = []
 
     def stream_claude():
         with client.messages.stream(
-            model="claude-opus-4-6",
+            model="claude-sonnet-4-6",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
@@ -146,14 +143,13 @@ def ai_insights(
                 full_text.append(text)
                 yield f"data: {json.dumps({'text': text, 'done': False})}\n\n"
 
-        # Cache the full response
         complete = "".join(full_text)
         try:
             supabase.table("mining_jobs").update(
                 {"insights_cache": complete}
             ).eq("id", req.job_id).execute()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Kon insights cache niet opslaan: %s", exc)
 
         yield f"data: {json.dumps({'done': True, 'cached': False})}\n\n"
 

@@ -1,6 +1,6 @@
 # Stappenplan: Retroductus
 
-**Versie:** 0.2 — **Datum:** 2026-03-14
+**Versie:** 0.4 — **Datum:** 2026-03-14
 
 ---
 
