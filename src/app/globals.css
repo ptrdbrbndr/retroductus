@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --retro-navy:  #0B1D3A;
+  --retro-teal:  #2EC4B6;
+  --retro-blue:  #1B6B93;
+  --retro-stone: #F7F5F2;
+  --retro-ink:   #1A1A2E;
+}
+
+@theme inline {
+  --color-retro-navy:  var(--retro-navy);
+  --color-retro-teal:  var(--retro-teal);
+  --color-retro-blue:  var(--retro-blue);
+  --color-retro-stone: var(--retro-stone);
+}
+
+body {
+  background: #fff;
+  color: var(--retro-ink);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #2EC4B6 0%, #1B6B93 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #2EC4B6 0%, #1B6B93 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+}
