@@ -8,57 +8,26 @@ on:
       - '.github/workflows/deploy-engine.yml'
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/mining-engine
+  RAILWAY_SERVICE_ID: 2812d8b7-997f-466c-b17a-74040d2d9b37
+  RAILWAY_ENVIRONMENT_ID: 6e08e330-cd1f-4f9d-adb9-1aaf32ce169d
+  RAILWAY_PROJECT_ID: 38a52c94-cbc6-4ca3-af2b-6bf1c40676a3
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./engine
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Make package public
+      - name: Deploy engine to Railway
+        working-directory: ./engine
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          curl -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/user/packages/container/ptrdbrbndr%2Fretroaductus%2Fmining-engine \
-            -d '{"visibility":"public"}' || true
-          # Alternative: use org-level package visibility
-          curl -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/user/packages/container/$(echo '${{ env.IMAGE_NAME }}' | sed 's|/|%2F|g')" \
-            -d '{"visibility":"public"}' || echo "Could not set visibility, may need manual setting"
+          railway link --project ${{ env.RAILWAY_PROJECT_ID }} --environment ${{ env.RAILWAY_ENVIRONMENT_ID }} --service ${{ env.RAILWAY_SERVICE_ID }}
+          railway up --detach
+          echo "Deployment triggered"
