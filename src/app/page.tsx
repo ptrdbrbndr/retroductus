@@ -1,11 +1,6 @@
-import ComingSoon from './coming-soon'
 import { ArrowRight, GitBranch, Zap, BarChart2, Search, CheckCircle, ArrowUpRight } from 'lucide-react'
 
 export default function Home() {
-  if (process.env.NEXT_PUBLIC_COMING_SOON === 'true') {
-    return <ComingSoon />
-  }
-
   return (
     <div className="min-h-screen bg-white">
 
