@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 import os
 
-from routers import analysis
+from routers import analysis, logs
 
 load_dotenv()
 
@@ -19,6 +19,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     return credentials.credentials
 
 
+app.include_router(logs.router, tags=["logs"])
 app.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 
 

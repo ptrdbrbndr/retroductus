@@ -24,7 +24,7 @@ export default function Home() {
             <a href="#pricing" className="hover:text-gray-900 transition-colors">Prijzen</a>
           </nav>
           <div className="flex items-center gap-3">
-            <a href="/login" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Inloggen</a>
+            <a href="/login" data-testid="nav-login" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Inloggen</a>
             <a
               href="/register"
               className="text-sm text-white px-4 py-2 rounded-lg gradient-bg hover:opacity-90 transition-opacity"
@@ -47,7 +47,7 @@ export default function Home() {
             Onderdeel van de Conductus-suite
           </div>
 
-          <h1 className="text-6xl font-bold text-white leading-[1.05] mb-6"
+          <h1 data-testid="hero-title" className="text-6xl font-bold text-white leading-[1.05] mb-6"
             style={{ fontFamily: 'Cormorant Garamond, serif', letterSpacing: '-0.01em' }}>
             Kijk terug.<br />
             <span className="gradient-text">Stuur bij.</span><br />
@@ -149,7 +149,7 @@ export default function Home() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24" style={{ background: 'var(--retro-stone)' }}>
+      <section id="pricing" data-testid="pricing-section" className="py-24" style={{ background: 'var(--retro-stone)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center max-w-xl mx-auto mb-14">
             <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--retro-navy)' }}>Transparante prijzen</h2>
