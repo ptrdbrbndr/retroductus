@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { GitBranch, ArrowRight } from 'lucide-react'
 
 export default function ComingSoon() {
   const [email, setEmail] = useState('')
@@ -35,93 +36,63 @@ export default function ComingSoon() {
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{
-        background: '#FAFAF8',
-        backgroundImage: `
-          linear-gradient(rgba(11,29,58,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(11,29,58,0.04) 1px, transparent 1px)
-        `,
-        backgroundSize: '48px 48px',
-      }}
-    >
-      {/* Top bar */}
-      <div style={{ background: '#0B1D3A', borderBottom: '2px solid #2EC4B6', padding: '10px 24px' }}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div style={{ width: 22, height: 22, background: '#2EC4B6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0B1D3A" strokeWidth="3" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" strokeWidth="2.5"/>
-                <path d="M12 7v5l3 2" strokeLinecap="square" stroke="#F59E0B"/>
-              </svg>
-            </div>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: 'white', letterSpacing: '0.08em' }}>RETRODUCTUS</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: '#2EC4B6', opacity: 0.7, letterSpacing: '0.1em' }}>by Conductus</span>
+    <div className="min-h-screen flex flex-col bg-white">
+
+      {/* Nav */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-5 w-5" style={{ color: 'var(--retro-teal)' }} />
+            <span className="text-lg font-semibold tracking-tight" style={{ color: 'var(--retro-navy)', fontFamily: 'Cormorant Garamond, serif' }}>
+              Retroductus
+            </span>
           </div>
-          <a href="https://www.conductus.nl" style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: 'rgba(46,196,182,0.6)', fontWeight: 500 }}>
+          <a href="https://www.conductus.nl" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
             conductus.nl ↗
           </a>
         </div>
-      </div>
+      </header>
 
-      {/* Main */}
-      <main className="flex-1 flex items-center justify-center px-6 py-20">
-        <div className="max-w-2xl w-full text-center">
+      {/* Hero — zelfde stijl als de landingspagina */}
+      <section className="relative flex-1 flex items-center justify-center overflow-hidden pt-16" style={{ background: 'var(--retro-navy)' }}>
+        <div className="hero-glow" style={{ width: 600, height: 600, background: '#2EC4B6', opacity: 0.07, top: -150, right: -150 }} />
+        <div className="hero-glow" style={{ width: 500, height: 500, background: '#1B6B93', opacity: 0.1, bottom: -100, left: -100 }} />
+
+        <div className="relative max-w-2xl mx-auto px-6 py-32 text-center">
 
           {/* Status badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            border: '2px solid #2EC4B6', padding: '6px 16px',
-            fontFamily: "'Space Mono', monospace", fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.12em', textTransform: 'uppercase', color: '#1B6B93',
-            background: 'rgba(46,196,182,0.06)', marginBottom: 40,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2EC4B6', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+          <div className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full mb-10 border"
+            style={{ borderColor: 'rgba(46,196,182,0.3)', color: '#2EC4B6', background: 'rgba(46,196,182,0.08)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
             In ontwikkeling — binnenkort beschikbaar
           </div>
 
           {/* Heading */}
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 'clamp(3.2rem, 10vw, 6.5rem)',
-            fontWeight: 700,
-            lineHeight: 1,
-            letterSpacing: '-0.01em',
-            color: '#0B1D3A',
-            marginBottom: 28,
-          }}>
+          <h1 className="font-bold text-white leading-[1.05] mb-6"
+            style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(3rem, 8vw, 5.5rem)', letterSpacing: '-0.01em' }}>
             Kijk terug.<br />
-            <em style={{
-              fontStyle: 'normal',
-              background: 'linear-gradient(135deg, #2EC4B6, #1B6B93)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>Stuur bij.</em><br />
+            <span className="gradient-text">Stuur bij.</span><br />
             Leid beter.
           </h1>
 
-          {/* Subtitle */}
-          <p style={{
-            fontFamily: 'DM Sans, sans-serif', fontSize: 18, lineHeight: 1.7,
-            color: 'rgba(11,29,58,0.55)', maxWidth: 520, margin: '0 auto 48px',
-          }}>
-            Retroductus is een <strong style={{ color: '#0B1D3A', fontWeight: 600 }}>process mining platform</strong> dat laat zien hoe jouw processen écht verlopen — upload een event log en ontdek bottlenecks, afwijkingen en AI-gedreven verbetermogelijkheden.
+          {/* Description */}
+          <p className="text-lg text-white/60 max-w-lg mx-auto mb-12 font-light leading-relaxed">
+            Retroductus is een <strong className="text-white/90 font-medium">process mining platform</strong> dat laat zien hoe jouw processen écht verlopen. Upload een event log — ontdek bottlenecks, afwijkingen en AI-gedreven verbetermogelijkheden.
           </p>
 
           {/* Waitlist form */}
           {state === 'success' ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 24, height: 24, background: '#2EC4B6', border: '2px solid #0B1D3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0B1D3A" strokeWidth="2.5" aria-hidden="true"><path d="M2 9l4 4 8-8" strokeLinecap="square"/></svg>
+            <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl"
+              style={{ background: 'rgba(46,196,182,0.15)', border: '1px solid rgba(46,196,182,0.3)' }}>
+              <div className="w-5 h-5 rounded-full gradient-bg flex items-center justify-center flex-shrink-0">
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2.5"><path d="M2 9l4 4 8-8" strokeLinecap="round"/></svg>
               </div>
-              <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#0B1D3A', fontWeight: 700 }}>
+              <p className="text-sm font-medium" style={{ color: '#2EC4B6' }}>
                 Je staat op de lijst. We houden je op de hoogte.
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'row', gap: 10, maxWidth: 460, margin: '0 auto 12px', flexWrap: 'wrap', justifyContent: 'center' }} noValidate>
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" noValidate>
               <input
                 type="email"
                 value={email}
@@ -130,90 +101,62 @@ export default function ComingSoon() {
                 data-testid="email-input"
                 required
                 disabled={state === 'loading'}
+                className="flex-1 text-sm px-4 py-3 rounded-lg"
                 style={{
-                  flex: '1 1 200px',
-                  border: '2px solid #0B1D3A',
-                  background: 'white',
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: 14,
-                  padding: '13px 16px',
-                  color: '#0B1D3A',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'white',
                   outline: 'none',
-                  minWidth: 0,
                 }}
               />
               <button
                 type="submit"
                 data-testid="waitlist-submit"
                 disabled={state === 'loading'}
-                style={{
-                  background: '#F59E0B',
-                  border: '2px solid #0B1D3A',
-                  boxShadow: state === 'loading' ? 'none' : '3px 3px 0 #0B1D3A',
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#0B1D3A',
-                  padding: '13px 24px',
-                  cursor: state === 'loading' ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  opacity: state === 'loading' ? 0.6 : 1,
-                }}
+                className="inline-flex items-center justify-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg gradient-bg hover:opacity-90 transition-opacity whitespace-nowrap disabled:opacity-50"
               >
-                {state === 'loading' ? 'Bezig...' : 'Zet me op de lijst →'}
+                {state === 'loading' ? 'Bezig...' : (<>Zet me op de lijst <ArrowRight className="h-4 w-4" /></>)}
               </button>
             </form>
           )}
 
           {errorMsg && (
-            <p role="alert" style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: '#DC2626', marginBottom: 8 }}>
-              {errorMsg}
-            </p>
+            <p role="alert" className="text-sm mt-3" style={{ color: '#F87171' }}>{errorMsg}</p>
           )}
 
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: 'rgba(11,29,58,0.35)', letterSpacing: '0.06em', marginTop: 16 }}>
+          <p className="text-xs mt-5" style={{ color: 'rgba(255,255,255,0.25)' }}>
             Geen spam. Alleen nieuws over de lancering.
           </p>
 
-          {/* Feature tiles */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 56 }}>
+          {/* Feature preview tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-16">
             {[
-              { n: '01', label: 'Process\nDiscovery' },
-              { n: '02', label: 'Conformance\nChecking' },
-              { n: '03', label: 'Performance\nAnalytics' },
-              { n: '04', label: 'AI\nInsights', accent: true },
+              { n: '01', label: 'Process Discovery' },
+              { n: '02', label: 'Conformance Checking' },
+              { n: '03', label: 'Performance Analytics' },
+              { n: '04', label: 'AI Insights', accent: true },
             ].map(({ n, label, accent }) => (
-              <div key={n} style={{
-                border: `2px solid ${accent ? '#2EC4B6' : '#0B1D3A'}`,
-                background: accent ? '#F59E0B' : 'white',
-                padding: '14px 12px',
-                boxShadow: `3px 3px 0 ${accent ? '#2EC4B6' : '#0B1D3A'}`,
-              }}>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', opacity: accent ? 0.5 : 0.3, marginBottom: 6, textTransform: 'uppercase' }}>{n}</div>
-                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, whiteSpace: 'pre-line' }}>{label}</p>
+              <div key={n} className="rounded-xl p-4 text-left"
+                style={{
+                  background: accent ? 'rgba(46,196,182,0.15)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${accent ? 'rgba(46,196,182,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                }}>
+                <div className="text-xs font-medium mb-2" style={{ color: accent ? '#2EC4B6' : 'rgba(255,255,255,0.25)' }}>{n}</div>
+                <p className="text-sm font-semibold text-white/80" style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 15 }}>{label}</p>
               </div>
             ))}
           </div>
         </div>
-      </main>
+      </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: '2px solid #0B1D3A', background: 'white', padding: '20px 24px' }}>
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: 'rgba(11,29,58,0.3)', letterSpacing: '0.08em' }}>
-            © 2026 RETRODUCTUS — PIETER DE BRABANDER
-          </p>
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: 'rgba(11,29,58,0.3)' }}>
-            Onderdeel van de{' '}
-            <a href="https://www.conductus.nl" style={{ color: '#1B6B93', textDecoration: 'underline' }}>Conductus-suite</a>
-          </p>
+      <footer className="border-t py-6" style={{ borderColor: 'rgba(11,29,58,0.08)' }}>
+        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+          <span>© 2026 Retroductus — Pieter de Brabander</span>
+          <span>Onderdeel van de <a href="https://www.conductus.nl" className="hover:text-gray-600 transition-colors" style={{ color: 'var(--retro-blue)' }}>Conductus-suite</a></span>
         </div>
       </footer>
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-      `}</style>
     </div>
   )
 }
