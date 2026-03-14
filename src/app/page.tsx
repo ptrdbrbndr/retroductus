@@ -1,6 +1,11 @@
+import ComingSoon from './coming-soon'
 import { ArrowRight, GitBranch, Zap, BarChart2, Search, CheckCircle, ArrowUpRight } from 'lucide-react'
 
 export default function Home() {
+  if (process.env.NEXT_PUBLIC_COMING_SOON === 'true') {
+    return <ComingSoon />
+  }
+
   return (
     <div className="min-h-screen bg-white">
 
@@ -32,7 +37,6 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative pt-32 pb-28 overflow-hidden" style={{ background: 'var(--retro-navy)' }}>
-        {/* subtle glow orbs */}
         <div className="hero-glow" style={{ width: 500, height: 500, background: '#2EC4B6', opacity: 0.08, top: -100, right: -100 }} />
         <div className="hero-glow" style={{ width: 400, height: 400, background: '#1B6B93', opacity: 0.12, bottom: -80, left: -80 }} />
 
@@ -56,17 +60,11 @@ export default function Home() {
           </p>
 
           <div className="flex items-center justify-center gap-4">
-            <a
-              href="/register"
-              className="inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg gradient-bg hover:opacity-90 transition-opacity"
-            >
+            <a href="/register" className="inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg gradient-bg hover:opacity-90 transition-opacity">
               Gratis starten <ArrowRight className="h-4 w-4" />
             </a>
-            <a
-              href="#how"
-              className="inline-flex items-center gap-2 text-sm font-medium px-6 py-3 rounded-lg transition-colors"
-              style={{ color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}
-            >
+            <a href="#how" className="inline-flex items-center gap-2 text-sm font-medium px-6 py-3 rounded-lg transition-colors"
+              style={{ color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Hoe het werkt
             </a>
           </div>
@@ -102,37 +100,18 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <FeatureCard
-              icon={<Search className="h-5 w-5" />}
-              title="Process Discovery"
-              description="Ontdek het werkelijke procesmodel op basis van jouw event-data. Direct-Follows Graphs tonen alle paden en frequenties."
-            />
-            <FeatureCard
-              icon={<BarChart2 className="h-5 w-5" />}
-              title="Performance Analytics"
-              description="Zie precies waar tijd verloren gaat. Doorlooptijden per activiteit, wachttijden en resource-analyse in één overzicht."
-              featured
-            />
-            <FeatureCard
-              icon={<CheckCircle className="h-5 w-5" />}
-              title="Conformance Checking"
-              description="Vergelijk het werkelijke procesverloop met jouw normatiefmodel. Identificeer welke cases afwijken en waarom."
-            />
-            <FeatureCard
-              icon={<Zap className="h-5 w-5" />}
-              title="AI Insights"
-              description="Claude genereert concrete verbeteraanbevelingen in gewone taal. Geen data-expertise nodig."
-            />
-            <FeatureCard
-              icon={<GitBranch className="h-5 w-5" />}
-              title="Flowable-koppeling"
-              description="Directe integratie met Conductus en Flowable. Geen handmatige export — analyses starten met één klik."
-            />
-            <FeatureCard
-              icon={<ArrowUpRight className="h-5 w-5" />}
-              title="CSV & XES upload"
-              description="Werk je met een ander systeem? Upload event logs in CSV of XES-formaat en start direct met analyseren."
-            />
+            <FeatureCard icon={<Search className="h-5 w-5" />} title="Process Discovery"
+              description="Ontdek het werkelijke procesmodel op basis van jouw event-data. Direct-Follows Graphs tonen alle paden en frequenties." />
+            <FeatureCard icon={<BarChart2 className="h-5 w-5" />} title="Performance Analytics"
+              description="Zie precies waar tijd verloren gaat. Doorlooptijden per activiteit, wachttijden en resource-analyse in één overzicht." featured />
+            <FeatureCard icon={<CheckCircle className="h-5 w-5" />} title="Conformance Checking"
+              description="Vergelijk het werkelijke procesverloop met jouw normatiefmodel. Identificeer welke cases afwijken en waarom." />
+            <FeatureCard icon={<Zap className="h-5 w-5" />} title="AI Insights"
+              description="Claude genereert concrete verbeteraanbevelingen in gewone taal. Geen data-expertise nodig." />
+            <FeatureCard icon={<GitBranch className="h-5 w-5" />} title="Flowable-koppeling"
+              description="Directe integratie met Conductus en Flowable. Geen handmatige export — analyses starten met één klik." />
+            <FeatureCard icon={<ArrowUpRight className="h-5 w-5" />} title="CSV & XES upload"
+              description="Werk je met een ander systeem? Upload event logs in CSV of XES-formaat en start direct met analyseren." />
           </div>
         </div>
       </section>
@@ -141,9 +120,7 @@ export default function Home() {
       <section id="how" className="py-24">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center max-w-xl mx-auto mb-16">
-            <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--retro-navy)' }}>
-              Drie stappen naar inzicht
-            </h2>
+            <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--retro-navy)' }}>Drie stappen naar inzicht</h2>
             <p className="text-gray-500">Van ruwe event-data naar concrete actiepunten.</p>
           </div>
 
@@ -175,32 +152,17 @@ export default function Home() {
       <section id="pricing" className="py-24" style={{ background: 'var(--retro-stone)' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center max-w-xl mx-auto mb-14">
-            <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--retro-navy)' }}>
-              Transparante prijzen
-            </h2>
+            <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--retro-navy)' }}>Transparante prijzen</h2>
             <p className="text-gray-500">Begin gratis. Schaal op wanneer je groeit.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto">
-            <PricingCard
-              name="Free"
-              price="€0"
-              sub="voor altijd"
-              features={['1 project', 'Max 10.000 events', 'Process discovery', 'CSV upload']}
-            />
-            <PricingCard
-              name="Starter"
-              price="€29"
-              sub="per maand"
-              features={['5 projecten', 'Max 100.000 events', 'Performance analytics', 'PDF exports', 'XES support']}
-              featured
-            />
-            <PricingCard
-              name="Pro"
-              price="€79"
-              sub="per maand"
-              features={['Onbeperkt', 'AI Insights', 'Flowable-koppeling', 'Team-toegang', 'API-koppeling']}
-            />
+            <PricingCard name="Free" price="€0" sub="voor altijd"
+              features={['1 project', 'Max 10.000 events', 'Process discovery', 'CSV upload']} />
+            <PricingCard name="Starter" price="€29" sub="per maand"
+              features={['5 projecten', 'Max 100.000 events', 'Performance analytics', 'PDF exports', 'XES support']} featured />
+            <PricingCard name="Pro" price="€79" sub="per maand"
+              features={['Onbeperkt', 'AI Insights', 'Flowable-koppeling', 'Team-toegang', 'API-koppeling']} />
           </div>
         </div>
       </section>
@@ -208,16 +170,11 @@ export default function Home() {
       {/* CTA */}
       <section className="py-20" style={{ background: 'var(--retro-navy)' }}>
         <div className="max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
-            Begin vandaag nog met analyseren
-          </h2>
+          <h2 className="text-4xl font-bold text-white mb-4">Begin vandaag nog met analyseren</h2>
           <p className="text-white/50 mb-8 max-w-md mx-auto leading-relaxed">
             Geen creditcard vereist. In minder dan een minuut je eerste procesanalyse.
           </p>
-          <a
-            href="/register"
-            className="inline-flex items-center gap-2 text-white text-sm font-medium px-8 py-3 rounded-lg gradient-bg hover:opacity-90 transition-opacity"
-          >
+          <a href="/register" className="inline-flex items-center gap-2 text-white text-sm font-medium px-8 py-3 rounded-lg gradient-bg hover:opacity-90 transition-opacity">
             Gratis account aanmaken <ArrowRight className="h-4 w-4" />
           </a>
         </div>
@@ -270,25 +227,20 @@ function PricingCard({ name, price, sub, features, featured }: {
   name: string; price: string; sub: string; features: string[]; featured?: boolean
 }) {
   return (
-    <div
-      className="rounded-xl p-6 flex flex-col"
-      style={{
-        background: featured ? 'var(--retro-navy)' : '#fff',
-        border: featured ? 'none' : '1px solid #EBEBEB',
-        boxShadow: featured ? '0 20px 40px -12px rgba(11,29,58,0.3)' : '0 2px 8px rgba(11,29,58,0.04)',
-      }}
-    >
+    <div className="rounded-xl p-6 flex flex-col" style={{
+      background: featured ? 'var(--retro-navy)' : '#fff',
+      border: featured ? 'none' : '1px solid #EBEBEB',
+      boxShadow: featured ? '0 20px 40px -12px rgba(11,29,58,0.3)' : '0 2px 8px rgba(11,29,58,0.04)',
+    }}>
       <div className="mb-6">
-        <p className={`text-xs font-medium uppercase tracking-widest mb-3 ${featured ? 'text-teal-300' : 'text-gray-400'}`}
-          style={featured ? { color: '#2EC4B6' } : undefined}>
-          {name}
-        </p>
+        <p className="text-xs font-medium uppercase tracking-widest mb-3"
+          style={{ color: featured ? '#2EC4B6' : '#9CA3AF' }}>{name}</p>
         <div className="flex items-baseline gap-1">
-          <span className={`text-4xl font-bold ${featured ? 'text-white' : ''}`}
-            style={!featured ? { color: 'var(--retro-navy)', fontFamily: 'Cormorant Garamond, serif' } : { fontFamily: 'Cormorant Garamond, serif' }}>
+          <span className="text-4xl font-bold"
+            style={{ color: featured ? 'white' : 'var(--retro-navy)', fontFamily: 'Cormorant Garamond, serif' }}>
             {price}
           </span>
-          <span className={`text-sm ${featured ? 'text-white/50' : 'text-gray-400'}`}>/{sub}</span>
+          <span className="text-sm" style={{ color: featured ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>/{sub}</span>
         </div>
       </div>
 
@@ -296,17 +248,14 @@ function PricingCard({ name, price, sub, features, featured }: {
         {features.map((f) => (
           <li key={f} className="flex items-center gap-2 text-sm">
             <span style={{ color: '#2EC4B6' }}>✓</span>
-            <span className={featured ? 'text-white/80' : 'text-gray-600'}>{f}</span>
+            <span style={{ color: featured ? 'rgba(255,255,255,0.8)' : '#4B5563' }}>{f}</span>
           </li>
         ))}
       </ul>
 
-      <a
-        href="/register"
-        className={`text-center py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 ${
-          featured ? 'text-white gradient-bg' : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-        }`}
-      >
+      <a href="/register" className="text-center py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+        style={featured ? { background: 'linear-gradient(135deg, #2EC4B6, #1B6B93)', color: 'white' }
+          : { border: '1px solid #E5E7EB', color: '#374151' }}>
         {name === 'Free' ? 'Gratis starten' : 'Probeer gratis'}
       </a>
     </div>
