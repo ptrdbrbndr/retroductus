@@ -12,9 +12,10 @@ test('landingspagina toont pricing sectie', async ({ vibePage: page }) => {
   await expect(page.getByTestId('pricing-section')).toBeVisible()
 })
 
-test('login link op landingspagina werkt', async ({ vibePage: page }) => {
+test('login link op landingspagina leidt naar login of app', async ({ vibePage: page }) => {
   await page.goto('/')
   await page.getByTestId('nav-login').click()
   await page.vibeCheck('nav-to-login')
-  await expect(page.getByTestId('login-form')).toBeVisible({ timeout: 5000 })
+  // Ingelogde gebruiker → /app, uitgelogde gebruiker → /login
+  await expect(page).toHaveURL(/\/(login|app)/)
 })
