@@ -112,15 +112,13 @@ async def upload_log(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Alleen CSV en XES bestanden zijn toegestaan.")
 
-    # Lees bestand in chunks om grootte te controleren
-    content = b""
-    async for chunk in file:
-        content += chunk
-        if len(content) > DEFAULT_MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail=f"Bestand te groot. Maximum is {DEFAULT_MAX_FILE_SIZE // (1024 * 1024)} MB.",
-            )
+    # Lees bestand en controleer grootte
+    content = await file.read()
+    if len(content) > DEFAULT_MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Bestand te groot. Maximum is {DEFAULT_MAX_FILE_SIZE // (1024 * 1024)} MB.",
+        )
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Leeg bestand geüpload.")
