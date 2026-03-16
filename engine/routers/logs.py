@@ -172,7 +172,7 @@ def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
         logger.error("[job:%s] analyse mislukt: %s", job_id, exc, exc_info=True)
         supabase.table("mining_jobs").update({
             "status": "error",
-            "error_message": "Analyse mislukt. Controleer het bestandsformaat.",
+            "error_message": f"Analyse mislukt ({type(exc).__name__}): {exc}",
             "completed_at": "now()",
         }).eq("id", job_id).execute()
 
