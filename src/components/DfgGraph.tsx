@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   ReactFlow,
   Background,
@@ -13,37 +13,48 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-interface DfgNode {
+export interface DfgNode {
   activity: string
   count: number
   avg_duration_sec?: number | null
 }
 
-interface DfgEdge {
+export interface DfgEdge {
   from?: string
   source?: string
   to?: string
   target?: string
   count: number
+  avg_duration_sec?: number | null
 }
+
+export type DfgMode = 'frequency' | 'performance'
 
 interface Props {
   nodes: DfgNode[]
   edges: DfgEdge[]
   startActivities: Record<string, number>
   endActivities: Record<string, number>
+  mode?: DfgMode
 }
 
 const NODE_WIDTH = 180
 const NODE_HEIGHT = 60
+
+function durLabel(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)}s`
+  if (sec < 3600) return `${Math.round(sec / 60)}min`
+  if (sec < 86400) return `${(sec / 3600).toFixed(1)}u`
+  return `${(sec / 86400).toFixed(1)}d`
+}
 
 function buildLayout(
   dfgNodes: DfgNode[],
   dfgEdges: DfgEdge[],
   startActs: Record<string, number>,
   endActs: Record<string, number>,
+  mode: DfgMode,
 ): { nodes: Node[]; edges: Edge[] } {
-  // Simple layered layout: bucket nodes into columns based on graph traversal
   const actNames = dfgNodes.map(n => n.activity)
   const edgeMap: Record<string, string[]> = {}
   dfgEdges.forEach(e => {
@@ -53,23 +64,17 @@ function buildLayout(
     edgeMap[src].push(tgt)
   })
 
-  // BFS layering from start activities
+  // BFS layering
   const layers: string[][] = []
   const visited = new Set<string>()
   const queue: Array<{ name: string; depth: number }> = []
-
-  // Seed with start activities, or all nodes if none defined
-  const starts = Object.keys(startActs).length > 0
-    ? Object.keys(startActs)
-    : actNames.slice(0, 1)
-
+  const starts = Object.keys(startActs).length > 0 ? Object.keys(startActs) : actNames.slice(0, 1)
   starts.forEach(s => {
     if (actNames.includes(s)) {
       queue.push({ name: s, depth: 0 })
       visited.add(s)
     }
   })
-
   while (queue.length > 0) {
     const { name, depth } = queue.shift()!
     if (!layers[depth]) layers[depth] = []
@@ -81,14 +86,12 @@ function buildLayout(
       }
     })
   }
-
-  // Add unvisited nodes at the end
   const unvisited = actNames.filter(n => !visited.has(n))
   if (unvisited.length > 0) layers.push(unvisited)
 
   const maxPerCol = Math.max(...layers.map(l => l.length), 1)
-  const flowNodes: Node[] = []
 
+  const flowNodes: Node[] = []
   layers.forEach((layer, col) => {
     layer.forEach((name, row) => {
       const dfgNode = dfgNodes.find(n => n.activity === name)
@@ -105,12 +108,9 @@ function buildLayout(
             <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
               <div style={{ fontWeight: 600, fontSize: 12, color: '#e2e8f0' }}>{name}</div>
               <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
-                {dfgNode?.count ?? 0}×
-                {dfgNode?.avg_duration_sec != null
-                  ? ` · ${dfgNode.avg_duration_sec < 60
-                      ? `${dfgNode.avg_duration_sec}s`
-                      : `${Math.round(dfgNode.avg_duration_sec / 60)}min`}`
-                  : ''}
+                {mode === 'performance' && dfgNode?.avg_duration_sec != null
+                  ? durLabel(dfgNode.avg_duration_sec)
+                  : `${dfgNode?.count ?? 0}×`}
               </div>
             </div>
           ),
@@ -136,10 +136,38 @@ function buildLayout(
     })
   })
 
+  // Edge rendering: frequency vs performance mode
+  const perfEdges = dfgEdges.filter(e => e.avg_duration_sec != null)
   const maxCount = Math.max(...dfgEdges.map(e => e.count), 1)
+  const maxDur = perfEdges.length > 0
+    ? Math.max(...perfEdges.map(e => e.avg_duration_sec!), 1)
+    : 1
+
   const flowEdges: Edge[] = dfgEdges.map((e, i) => {
     const src = e.from ?? e.source ?? ''
     const tgt = e.to ?? e.target ?? ''
+
+    if (mode === 'performance' && e.avg_duration_sec != null) {
+      const weight = e.avg_duration_sec / maxDur
+      // Red = slow, green = fast (inverted: high duration = red)
+      const r = Math.round(239 * weight + 34 * (1 - weight))
+      const g = Math.round(68 * weight + 197 * (1 - weight))
+      const b = Math.round(68 * weight + 94 * (1 - weight))
+      const color = `rgb(${r},${g},${b})`
+      return {
+        id: `e-${i}`,
+        source: src,
+        target: tgt,
+        label: durLabel(e.avg_duration_sec),
+        labelStyle: { fill: '#e2e8f0', fontSize: 10 },
+        labelBgStyle: { fill: 'transparent' },
+        style: { stroke: color, strokeWidth: 1 + weight * 3 },
+        markerEnd: { type: MarkerType.ArrowClosed, color },
+        animated: weight > 0.7,
+      }
+    }
+
+    // Frequency mode (default)
     const weight = e.count / maxCount
     return {
       id: `e-${i}`,
@@ -160,10 +188,10 @@ function buildLayout(
   return { nodes: flowNodes, edges: flowEdges }
 }
 
-export default function DfgGraph({ nodes: dfgNodes, edges: dfgEdges, startActivities, endActivities }: Props) {
+export default function DfgGraph({ nodes: dfgNodes, edges: dfgEdges, startActivities, endActivities, mode = 'frequency' }: Props) {
   const { nodes, edges } = useMemo(
-    () => buildLayout(dfgNodes, dfgEdges, startActivities, endActivities),
-    [dfgNodes, dfgEdges, startActivities, endActivities],
+    () => buildLayout(dfgNodes, dfgEdges, startActivities, endActivities, mode),
+    [dfgNodes, dfgEdges, startActivities, endActivities, mode],
   )
 
   if (nodes.length === 0) {

@@ -61,11 +61,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <p className="text-gray-400 text-sm mt-1">{new Date(job.created_at).toLocaleDateString('nl-NL', { dateStyle: 'long' })}</p>
         </div>
         {job.status === 'done' && (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/app/projects/${job.id}/insights`}
               data-testid="project-insights-link"
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
               style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}
             >
               AI Insights
@@ -73,17 +73,58 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             <Link
               href={`/app/projects/${job.id}/conformance`}
               data-testid="project-conformance-link"
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
               style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
             >
               Conformance
             </Link>
             <Link
               href={`/app/projects/${job.id}/performance`}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              data-testid="project-performance-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
               style={{ background: 'rgba(74,158,255,0.15)', border: '1px solid rgba(74,158,255,0.3)' }}
             >
-              Bottleneck analyse
+              Bottlenecks
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/variants`}
+              data-testid="project-variants-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)' }}
+            >
+              Varianten
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/statistics`}
+              data-testid="project-statistics-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)' }}
+            >
+              Statistieken
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/dotted`}
+              data-testid="project-dotted-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(244,114,182,0.15)', border: '1px solid rgba(244,114,182,0.3)' }}
+            >
+              Tijdlijn
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/bpmn`}
+              data-testid="project-bpmn-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)' }}
+            >
+              BPMN
+            </Link>
+            <Link
+              href={`/app/projects/${job.id}/simulation`}
+              data-testid="project-simulation-link"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'rgba(251,146,60,0.15)', border: '1px solid rgba(251,146,60,0.3)' }}
+            >
+              Simulatie
             </Link>
           </div>
         )}
