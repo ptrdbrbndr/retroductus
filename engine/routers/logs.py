@@ -58,12 +58,16 @@ def _parse_file(filename: str, content: bytes) -> pd.DataFrame:
 
 
 def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
+    import time as _time
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     try:
+        logger.info("[job:%s] analyse gestart — bestand: %s (%d bytes)", job_id, filename, len(content))
         supabase.table("mining_jobs").update({"status": "running"}).eq("id", job_id).execute()
 
         df = _parse_file(filename, content)
+        logger.info("[job:%s] bestand geparsed — %d rijen", job_id, len(df))
 
+        t0 = _time.perf_counter()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(run_discovery, df)
             try:
@@ -73,6 +77,7 @@ def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
                     f"Analyse timeout bereikt ({MINING_TIMEOUT_SECONDS}s). "
                     "Probeer met een kleiner event log."
                 )
+        elapsed = _time.perf_counter() - t0
 
         supabase.table("mining_jobs").update({
             "status": "done",
@@ -80,16 +85,17 @@ def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
             "event_count": len(df),
             "completed_at": "now()",
         }).eq("id", job_id).execute()
+        logger.info("[job:%s] klaar in %.1fs — %d events", job_id, elapsed, len(df))
 
     except TimeoutError as exc:
-        logger.warning("Analyse timeout voor job %s", job_id)
+        logger.warning("[job:%s] timeout na %ds", job_id, MINING_TIMEOUT_SECONDS)
         supabase.table("mining_jobs").update({
             "status": "error",
             "error_message": str(exc),
             "completed_at": "now()",
         }).eq("id", job_id).execute()
     except Exception as exc:
-        logger.error("Analyse mislukt voor job %s: %s", job_id, exc, exc_info=True)
+        logger.error("[job:%s] analyse mislukt: %s", job_id, exc, exc_info=True)
         supabase.table("mining_jobs").update({
             "status": "error",
             "error_message": "Analyse mislukt. Controleer het bestandsformaat.",
@@ -124,12 +130,18 @@ async def upload_log(
         raise HTTPException(status_code=400, detail="Leeg bestand geüpload.")
 
     job_id = str(uuid.uuid4())
+    logger.info("[job:%s] upload ontvangen — tenant:%s bestand:%s (%d bytes)", job_id, tenant_id, filename, len(content))
 
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    supabase.table("mining_jobs").insert({
+    insert_resp = supabase.table("mining_jobs").insert({
         "id": job_id,
         "status": "pending",
+        "user_id": tenant_id,
     }).execute()
+    if not insert_resp.data:
+        logger.error("[job:%s] Supabase insert mislukt — response: %s", job_id, insert_resp)
+        raise HTTPException(status_code=500, detail="Kon job niet aanmaken.")
+    logger.info("[job:%s] job aangemaakt in Supabase", job_id)
 
     background_tasks.add_task(_run_analysis, job_id, filename, content)
     return {"job_id": job_id}
