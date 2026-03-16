@@ -1,11 +1,12 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import Link from 'next/link'
+import ExportMenu from '@/components/ExportMenu'
 
 interface CaseDurations {
   histogram: Array<{ bucket_label: string; count: number }>
@@ -157,15 +158,21 @@ export default function StatisticsPage({ params }: { params: Promise<{ id: strin
 
   const hasData = caseDurations || heatmap.length > 0
 
+  const csvData = useMemo(() => {
+    if (!caseDurations) return undefined
+    const rows = caseDurations.histogram.map(b => `"${b.bucket_label}",${b.count}`)
+    return ['bucket,count', ...rows].join('\n')
+  }, [caseDurations])
+
   return (
     <div data-testid="statistics-page">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-semibold text-white" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
           Statistieken
         </h1>
-        <Link href={`/app/projects/${id}`} className="text-sm text-gray-400 hover:text-white">
-          ← Terug naar project
-        </Link>
+        {hasData && !loading && (
+          <ExportMenu targetId="viz-container-statistics" filename={`statistieken-${id}`} csvData={csvData} csvFilename="doorlooptijden.csv" />
+        )}
       </div>
 
       {loading ? (
@@ -173,7 +180,7 @@ export default function StatisticsPage({ params }: { params: Promise<{ id: strin
       ) : !hasData ? (
         <p className="text-gray-400">Geen statistiekdata beschikbaar. Analyseer het log opnieuw.</p>
       ) : (
-        <div className="space-y-8">
+        <div id="viz-container-statistics" className="space-y-8">
 
           {/* Case duration */}
           {caseDurations && (

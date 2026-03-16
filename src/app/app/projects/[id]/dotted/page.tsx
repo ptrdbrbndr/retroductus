@@ -6,6 +6,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import Link from 'next/link'
+import ExportMenu from '@/components/ExportMenu'
 
 interface DotEvent {
   case_id: string
@@ -91,6 +92,12 @@ export default function DottedPage({ params }: { params: Promise<{ id: string }>
   const minTs = chartData.length > 0 ? Math.min(...chartData.map(d => d.x)) : 0
   const maxTs = chartData.length > 0 ? Math.max(...chartData.map(d => d.x)) : 0
 
+  const csvData = useMemo(() => {
+    if (events.length === 0) return undefined
+    const rows = events.map(e => `"${e.case_id}","${e.activity}","${e.timestamp}"`)
+    return ['case_id,activiteit,tijdstip', ...rows].join('\n')
+  }, [events])
+
   return (
     <div data-testid="dotted-page">
       <div className="flex items-center justify-between mb-8">
@@ -104,9 +111,9 @@ export default function DottedPage({ params }: { params: Promise<{ id: string }>
             </p>
           )}
         </div>
-        <Link href={`/app/projects/${id}`} className="text-sm text-gray-400 hover:text-white">
-          ← Terug naar project
-        </Link>
+        {!loading && events.length > 0 && (
+          <ExportMenu targetId="viz-container-dotted" filename={`tijdlijn-${id}`} csvData={csvData} csvFilename="events.csv" />
+        )}
       </div>
 
       {loading ? (
@@ -114,7 +121,7 @@ export default function DottedPage({ params }: { params: Promise<{ id: string }>
       ) : events.length === 0 ? (
         <p className="text-gray-400">Geen tijdlijndata beschikbaar. Analyseer het log opnieuw.</p>
       ) : (
-        <div className="space-y-6">
+        <div id="viz-container-dotted" className="space-y-6">
 
           {/* Filter */}
           <div className="flex flex-wrap gap-2">

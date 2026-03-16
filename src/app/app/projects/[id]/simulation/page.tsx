@@ -1,12 +1,13 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   ReferenceLine,
 } from 'recharts'
 import Link from 'next/link'
+import ExportMenu from '@/components/ExportMenu'
 
 interface SimulationResult {
   n_simulations: number
@@ -79,6 +80,12 @@ export default function SimulationPage({ params }: { params: Promise<{ id: strin
     ? Math.round((sim.p50_duration_sec / (sim.p95_duration_sec || 1)) * (sim.histogram.length - 1))
     : -1
 
+  const csvData = useMemo(() => {
+    if (!sim) return undefined
+    const rows = sim.histogram.map(b => `"${b.bucket_label}",${b.count}`)
+    return ['bucket,count', ...rows].join('\n')
+  }, [sim])
+
   return (
     <div data-testid="simulation-page">
       <div className="flex items-center justify-between mb-8">
@@ -92,9 +99,9 @@ export default function SimulationPage({ params }: { params: Promise<{ id: strin
             </p>
           )}
         </div>
-        <Link href={`/app/projects/${id}`} className="text-sm text-gray-400 hover:text-white">
-          ← Terug naar project
-        </Link>
+        {sim && (
+          <ExportMenu targetId="viz-container-simulation" filename={`simulatie-${id}`} csvData={csvData} csvFilename="simulatie.csv" />
+        )}
       </div>
 
       {loading ? (
@@ -108,7 +115,7 @@ export default function SimulationPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div id="viz-container-simulation" className="space-y-8">
 
           {/* KPI grid */}
           <div data-testid="simulation-kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-4">

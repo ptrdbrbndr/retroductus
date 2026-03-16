@@ -1,9 +1,9 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import Link from 'next/link'
+import ExportMenu from '@/components/ExportMenu'
 
 interface Bottleneck {
   activity: string
@@ -27,10 +27,10 @@ export default function PerformancePage({ params }: { params: Promise<{ id: stri
 
       if (job?.result?.dfg_edges) {
         const edgesWithDuration = job.result.dfg_edges
-          .filter((e: any) => e.avg_duration != null && e.avg_duration > 0)
+          .filter((e: any) => e.avg_duration_sec != null && e.avg_duration_sec > 0)
           .map((e: any) => ({
-            activity: `${e.source} → ${e.target}`,
-            avg_duration: Math.round(e.avg_duration / 3600), // seconds to hours
+            activity: `${e.from ?? e.source} → ${e.to ?? e.target}`,
+            avg_duration: Math.round(e.avg_duration_sec / 3600),
             count: e.count,
           }))
           .sort((a: Bottleneck, b: Bottleneck) => b.avg_duration - a.avg_duration)
@@ -43,23 +43,29 @@ export default function PerformancePage({ params }: { params: Promise<{ id: stri
 
   const top10 = bottlenecks.slice(0, 10)
 
+  const csvData = useMemo(() => {
+    if (bottlenecks.length === 0) return undefined
+    const rows = bottlenecks.map(b => `"${b.activity}",${b.avg_duration},${b.count}`)
+    return ['overgang,avg_duur_uur,aantal', ...rows].join('\n')
+  }, [bottlenecks])
+
   return (
     <div data-testid="performance-page">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-semibold text-white" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
           Bottleneck analyse
         </h1>
-        <Link href={`/app/projects/${id}`} className="text-sm text-gray-400 hover:text-white">
-          ← Terug naar project
-        </Link>
+        {!loading && bottlenecks.length > 0 && (
+          <ExportMenu targetId="viz-container-performance" filename={`bottlenecks-${id}`} csvData={csvData} csvFilename="bottlenecks.csv" />
+        )}
       </div>
 
       {loading ? (
         <p className="text-gray-400">Laden...</p>
       ) : bottlenecks.length === 0 ? (
-        <p className="text-gray-400">Geen duurdata beschikbaar in dit logbestand.</p>
+        <p className="text-gray-400">Geen duurdata beschikbaar. Analyseer het log opnieuw voor doorlooptijden per overgang.</p>
       ) : (
-        <div className="space-y-8">
+        <div id="viz-container-performance" className="space-y-8">
           <div data-testid="bottleneck-chart" className="rounded-xl p-6" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <h2 className="text-white font-medium mb-6">Top 10 langste overgangen (uur)</h2>
             <ResponsiveContainer width="100%" height={320}>

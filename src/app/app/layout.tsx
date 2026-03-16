@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import EmbedLayout from '@/components/EmbedLayout'
+import IssueReportWrapper from '@/components/IssueReportWrapper'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -32,6 +33,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         >
           Nieuw project
         </Link>
+        <Link
+          href="/app/settings"
+          data-testid="nav-settings"
+          className="text-sm text-gray-400 hover:text-white"
+        >
+          Instellingen
+        </Link>
         <span className="text-sm text-gray-400">{user.email}</span>
         <form action={logout}>
           <button data-testid="nav-logout" type="submit" className="text-sm text-gray-400 hover:text-white">
@@ -51,6 +59,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="max-w-6xl mx-auto px-6 py-8">
         {children}
       </main>
+      {/* IssueReportWrapper verbergt de knop in embedded modus */}
+      <Suspense fallback={null}>
+        <IssueReportWrapper />
+      </Suspense>
     </div>
   )
 }

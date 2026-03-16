@@ -1,8 +1,9 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import ExportMenu from '@/components/ExportMenu'
 
 interface TraceVariant {
   variant_id: number
@@ -131,6 +132,14 @@ export default function VariantsPage({ params }: { params: Promise<{ id: string 
   const maxCount = variants.length > 0 ? Math.max(...variants.map(v => v.case_count)) : 1
   const totalCases = variants.reduce((s, v) => s + v.case_count, 0)
 
+  const csvData = useMemo(() => {
+    if (variants.length === 0) return undefined
+    const rows = variants.map(v =>
+      `${v.variant_id},"${v.activities.join(' → ')}",${v.case_count},${v.percentage},${v.avg_duration_sec ?? ''}`
+    )
+    return ['variant_id,activiteiten,case_count,percentage,avg_duration_sec', ...rows].join('\n')
+  }, [variants])
+
   return (
     <div data-testid="variants-page">
       <div className="flex items-center justify-between mb-8">
@@ -144,9 +153,11 @@ export default function VariantsPage({ params }: { params: Promise<{ id: string 
             </p>
           )}
         </div>
-        <Link href={`/app/projects/${id}`} className="text-sm text-gray-400 hover:text-white">
-          ← Terug naar project
-        </Link>
+        <div className="flex items-center gap-3">
+          {!loading && variants.length > 0 && (
+            <ExportMenu targetId="viz-container-variants" filename={`varianten-${id}`} csvData={csvData} csvFilename="varianten.csv" />
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -154,7 +165,7 @@ export default function VariantsPage({ params }: { params: Promise<{ id: string 
       ) : variants.length === 0 ? (
         <p className="text-gray-400">Geen variantdata beschikbaar. Analyseer het log opnieuw om varianten te berekenen.</p>
       ) : (
-        <div className="space-y-3">
+        <div id="viz-container-variants" className="space-y-3">
           {variants.map(v => (
             <VariantRow key={v.variant_id} variant={v} maxCount={maxCount} />
           ))}
