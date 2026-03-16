@@ -65,7 +65,21 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      {job.status !== 'done' ? (
+      {job.status === 'error' ? (
+        <div className="text-center py-16 rounded-xl" style={{ border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>
+          <p className="text-red-400 font-medium mb-2">Analyse mislukt</p>
+          {job.error_message && (
+            <p className="text-gray-400 text-sm max-w-lg mx-auto mb-6">{job.error_message}</p>
+          )}
+          <a
+            href="/app/projects/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white"
+            style={{ background: 'linear-gradient(135deg, #4a9eff 0%, #7c3aed 100%)' }}
+          >
+            Nieuw bestand uploaden
+          </a>
+        </div>
+      ) : job.status !== 'done' ? (
         <div className="text-center py-16 text-gray-400">
           <p>Status: <strong className="text-white">{job.status}</strong></p>
         </div>
