@@ -69,7 +69,7 @@ export default function IssuesOverviewPage() {
         .from('user_plans')
         .select('is_admin')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (plan?.is_admin) setIsAdmin(true)
 

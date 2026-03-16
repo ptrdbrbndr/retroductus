@@ -1,0 +1,12 @@
+case_id,activity,timestamp,resource,duration_ms
+E2E-001,Aanvraag ontvangen,2024-03-01 08:00:00,intake,500
+E2E-001,Beoordeling,2024-03-01 08:30:00,medewerker,1800000
+E2E-001,Goedkeuring,2024-03-01 09:00:00,manager,600000
+E2E-001,Afhandeling,2024-03-01 09:30:00,medewerker,900000
+E2E-002,Aanvraag ontvangen,2024-03-02 10:00:00,intake,500
+E2E-002,Beoordeling,2024-03-02 10:20:00,medewerker,1200000
+E2E-002,Afwijzing,2024-03-02 10:40:00,manager,300000
+E2E-003,Aanvraag ontvangen,2024-03-03 09:00:00,intake,500
+E2E-003,Beoordeling,2024-03-03 09:15:00,medewerker,900000
+E2E-003,Goedkeuring,2024-03-03 09:30:00,manager,600000
+E2E-003,Afhandeling,2024-03-03 10:00:00,medewerker,1800000

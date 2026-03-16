@@ -22,6 +22,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      router.refresh()
       router.push('/app')
     }
   }
@@ -40,8 +41,7 @@ export default function LoginPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white/6 border border-white/10"
             placeholder="naam@bedrijf.nl"
           />
         </div>
@@ -53,8 +53,7 @@ export default function LoginPage() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white/6 border border-white/10"
             placeholder="••••••••"
           />
         </div>

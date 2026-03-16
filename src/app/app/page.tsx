@@ -18,10 +18,12 @@ function durLabel(sec: number): string {
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return <div data-testid="dashboard" />
+
   const { data: jobs } = await supabase
     .from('mining_jobs')
     .select('id, filename, status, event_count, created_at, result')
-    .eq('user_id', user!.id)
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
   return (

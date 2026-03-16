@@ -8,6 +8,7 @@ test('uitloggen redirect naar login', async ({ vibePage }) => {
   await vibePage.goto('/app')
   await vibePage.waitForLoadState('networkidle')
 
+  await expect(vibePage.getByTestId('nav-logout')).toBeVisible()
   await vibePage.getByTestId('nav-logout').click()
   await vibePage.waitForURL('**/login')
   await expect(vibePage).toHaveURL(/\/login/)
