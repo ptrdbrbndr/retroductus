@@ -4,29 +4,42 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+const DPA_VERSION = '1.0'
+
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [dpaAccepted, setDpaAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!dpaAccepted) {
+      setError('Je moet de Verwerkersovereenkomst accepteren om verder te gaan.')
+      return
+    }
     setLoading(true)
     setError('')
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${location.origin}/auth/callback` },
     })
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
-    } else {
-      setDone(true)
+      return
     }
+    if (data.user) {
+      await supabase.from('dpa_acceptance').insert({
+        user_id: data.user.id,
+        dpa_version: DPA_VERSION,
+      })
+    }
+    setDone(true)
   }
 
   if (done) {
@@ -71,11 +84,28 @@ export default function RegisterPage() {
             placeholder="Minimaal 8 tekens"
           />
         </div>
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        <div className="flex items-start gap-3">
+          <input
+            data-testid="register-dpa-checkbox"
+            type="checkbox"
+            id="dpa-accept"
+            checked={dpaAccepted}
+            onChange={e => setDpaAccepted(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-600 accent-blue-500 cursor-pointer"
+          />
+          <label htmlFor="dpa-accept" className="text-sm text-gray-400 leading-relaxed cursor-pointer">
+            Ik accepteer de{' '}
+            <Link href="/dpa" target="_blank" className="text-blue-400 hover:underline">
+              Verwerkersovereenkomst
+            </Link>
+            {' '}(vereist voor het uploaden van bedrijfsdata)
+          </label>
+        </div>
+        {error && <p data-testid="register-error" className="text-red-400 text-sm">{error}</p>}
         <button
           data-testid="register-submit"
           type="submit"
-          disabled={loading}
+          disabled={loading || !dpaAccepted}
           className="w-full py-3 rounded-lg font-medium text-white text-sm disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, #4a9eff 0%, #7c3aed 100%)' }}
         >
