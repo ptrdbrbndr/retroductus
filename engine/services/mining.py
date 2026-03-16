@@ -4,20 +4,17 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pm4py
-from pm4py.objects.log.util import dataframe_utils
-from pm4py.objects.conversion.log import converter as log_converter
 
 
 def dataframe_to_event_log(df: pd.DataFrame):
     """Converteer pandas DataFrame naar PM4Py EventLog."""
-    df = df.rename(columns={
-        "case_id": "case:concept:name",
-        "activity": "concept:name",
-        "timestamp": "time:timestamp",
-        "resource": "org:resource",
-    })
-    df = dataframe_utils.convert_timestamp_columns_in_df(df)
-    return log_converter.apply(df, variant=log_converter.Variants.TO_EVENT_LOG)
+    formatted = pm4py.format_dataframe(
+        df.copy(),
+        case_id="case_id",
+        activity_key="activity",
+        timestamp_key="timestamp",
+    )
+    return pm4py.convert_to_event_log(formatted)
 
 
 def _fmt(val) -> float | None:
