@@ -1,244 +1,319 @@
-# Stappenplan: Retroductus
-
-**Versie:** 0.1
-**Datum:** 2026-03-13
-
----
-
-## Fase 0: Fundament (week 1–2)
-
-### Doelen
-- Repo's ingericht
-- Mining Engine draait lokaal
-- Domein gekoppeld
-
-### Taken
-
-**Infrastructuur**
-- [ ] GitHub repo `ptrdbrbndr/retroductus` aanmaken (monorepo: `engine/` + `ui/`)
-- [ ] Railway project `retroductus-engine` aanmaken
-- [ ] Supabase project aanmaken (of extra tabellen in conductus DB)
-- [ ] DNS bij mijn.host: `retroductor.nl` → Vercel, `api.retroductor.nl` → Railway
-- [ ] `.env.example` opstellen met alle vereiste variabelen
-
-**Mining Engine (minimaal)**
-- [ ] FastAPI project opzetten in `engine/`
-- [ ] PM4Py installeren en valideren (`requirements.txt`)
-- [ ] Endpoint `POST /logs` — accepteer CSV upload, sla op in Supabase Storage
-- [ ] Endpoint `POST /analysis/discover` — voer DFG discovery uit op log
-- [ ] Endpoint `GET /results/{id}` — geef JSON-resultaat terug
-- [ ] Docker image bouwen en deployen naar Railway
-
-**Deliverable:** API draait op `api.retroductor.nl`, accepteert CSV, geeft DFG JSON terug
+# Stappenplan Security & Kwaliteit — Retroductus
+> Gegenereerd op basis van security review 2026-03-14
+> Gebruik dit als werkopdracht: "Voer stap [N] uit van het Retroductus stappenplan"
+> ℹ️ Project is verder dan verwacht: Fase 1-6 al deels gebouwd. Security hardening is nu de bottleneck.
 
 ---
 
-## Fase 1: MVP Standalone (week 3–6)
+## STAND VAN ZAKEN
 
-### Doelen
-- Werkende webapplicatie op retroductor.nl
-- Gebruiker kan log uploaden en process model zien
-
-### Taken
-
-**UI — Retroductus**
-- [ ] Next.js project opzetten in `ui/`
-- [ ] Tailwind configureren (deels gebaseerd op Conductus design tokens)
-- [ ] Supabase Auth integreren (email + magic link)
-- [ ] Scherm: Dashboard met projectoverzicht
-- [ ] Scherm: Nieuw project — CSV upload
-- [ ] Scherm: Process Discovery view
-  - [ ] DFG visualisatie met React Flow
-  - [ ] Activiteit-statistieken (frequentie, gem. duur)
-- [ ] Scherm: Performance Dashboard
-  - [ ] Doorlooptijd histogram (Recharts)
-  - [ ] Top bottlenecks lijst
-- [ ] Deploy naar Vercel onder retroductor.nl
-
-**Mining Engine — uitbreiden**
-- [ ] `POST /analysis/performance` — doorlooptijden, wachttijden
-- [ ] XES format support naast CSV
-- [ ] Async job queue (FastAPI Background Tasks)
-- [ ] Job status polling endpoint
-
-**Vibe-tests**
-- [ ] `tests/vibe/upload-flow.spec.ts` — upload → analyse → resultaat
-- [ ] `tests/vibe/discovery-view.spec.ts` — DFG render check
-- [ ] `./vibe-check.sh` groen
-
-**Deliverable:** Werkende MVP op retroductor.nl — upload CSV, zie process model
+De review toont dat Retroductus verder is dan gedacht (70-80% feature-complete). De volgende stappen zijn gericht op het afronden van Fase 1 en het beveiligen van de bestaande code voordat er nieuwe features worden toegevoegd.
 
 ---
 
-## Fase 2: Flowable-connector (week 7–9)
+## PRIORITEIT 1 — KRITIEK (FUNDAMENT, doe dit eerst)
 
-### Doelen
-- Directe koppeling met Conductus/Flowable data
-- Geen handmatige log export nodig voor Conductus-klanten
+### Stap 1 — Multi-tenant RLS implementeren
+**Probleem:** Supabase tabellen missen RLS-policies die isolatie per organisatie afdwingen. Zonder dit kan Org A data van Org B zien.
 
-### Taken
+**Uitvoeren:**
+Maak nieuwe migratie `supabase/migrations/XXX_rls_tenant_isolation.sql`:
+```sql
+-- Controleer eerst welke tabellen bestaan
+-- Voeg toe aan elke tabel met organisatie-data:
 
-**Engine — Flowable connector**
-- [ ] Flowable PostgreSQL connector (lees `ACT_HI_ACTINST`)
-- [ ] Mapping Flowable schema → XES event log formaat
-- [ ] `POST /connectors/flowable` — configureer verbinding
-- [ ] `POST /connectors/flowable/sync` — haal event log op
-- [ ] CMMN-specifieke mapping (stages, taken, milestones)
-- [ ] Test tegen conductus-staging Flowable instance
+ALTER TABLE mining_jobs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Gebruiker ziet alleen eigen jobs"
+  ON mining_jobs FOR ALL
+  USING (user_id = auth.uid());
 
-**UI — connector flow**
-- [ ] Scherm: Nieuwe project — kies "Flowable koppelen"
-- [ ] Flowable connection wizard (host, credentials)
-- [ ] Preview van beschikbare process definitions
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Gebruiker ziet alleen eigen projecten"
+  ON projects FOR ALL
+  USING (user_id = auth.uid() OR organisation_id IN (
+    SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()
+  ));
 
-**Vibe-tests**
-- [ ] `tests/vibe/flowable-connector.spec.ts`
+-- Herhaal voor alle tabellen met gebruikersdata
+```
 
-**Deliverable:** Conductus-klant kan direct Flowable koppelen zonder CSV export
-
----
-
-## Fase 3: Conductus-integratie (week 10–13)
-
-### Doelen
-- Retroductus ingebouwd in Conductus portal
-- Toegankelijk voor Conductus Pro/Business klanten als add-on
-
-### Taken
-
-**Conductus portal**
-- [ ] Feature flag `PROCESS_MINING_ENABLED` in Conductus
-- [ ] Nieuw menu-item "Process Insights" in Conductus sidebar
-- [ ] Embed Retroductus UI via iframe met auth-token doorgifte
-- [ ] Automatische Flowable-connector configuratie via Conductus API keys
-- [ ] Abonnement-check: toon upgrade prompt voor Free-klanten
-
-**Retroductus UI — embedded modus**
-- [ ] `?embedded=true` param — verberg nav, pas kleuren aan naar Conductus brand
-- [ ] Auth token accepteren via URL hash (nooit plaintext in query param)
-- [ ] Cross-origin communicatie via `postMessage` voor resize
-
-**Billing**
-- [ ] Stripe Product aanmaken: "Process Mining Add-on" — €15/mnd
-- [ ] Webhook afhandeling in Conductus voor activatie/deactivatie
-
-**Vibe-tests**
-- [ ] `tests/vibe/conductus-mining-embed.spec.ts`
-
-**Deliverable:** Conductus Pro-klanten kunnen process mining inschakelen
+**Verificatie:** Vibe-test: ingelogde gebruiker kan jobs van andere gebruiker niet ophalen
 
 ---
 
-## Fase 4: AI Insights (week 14–16)
+### Stap 2 — FastAPI auth middleware op alle endpoints
+**Probleem:** FastAPI endpoints missen JWT-validatie. Iedereen met de engine URL kan analyses aanvragen.
+**Bestand:** `engine/` directory
 
-### Doelen
-- Claude-gebaseerde uitleg en aanbevelingen per analyse
-- Differentiator t.o.v. ProM en andere tools
+**Uitvoeren:**
+1. Voeg Supabase JWT validatie toe als FastAPI dependency:
+```python
+# engine/auth.py
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer
+import jwt
+import httpx
 
-### Taken
+security = HTTPBearer()
 
-**Engine — AI module**
-- [ ] `POST /insights/ai` endpoint
-- [ ] Prompt-template voor process mining bevindingen
-- [ ] Claude API integratie (`claude-opus-4-6`)
-- [ ] Resultaten cachen (zelfde analyse → zelfde insights, tenzij vernieuwd)
-- [ ] Rate limiting per user tier
+async def get_current_user(credentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        # Valideer tegen Supabase JWKS
+        payload = jwt.decode(token, options={"verify_signature": False})
+        # TODO: Valideer handtekening via Supabase public key
+        return payload
+    except Exception:
+        raise HTTPException(status_code=401, detail="Ongeldig token")
+```
 
-**UI — Insights scherm**
-- [ ] Scherm: AI Insights tab per project
-- [ ] Streaming response weergave (Server-Sent Events)
-- [ ] "Vernieuwen" knop voor nieuwe insights
-- [ ] Copy-to-clipboard voor rapportage
-
-**Vibe-tests**
-- [ ] `tests/vibe/ai-insights.spec.ts`
-
-**Deliverable:** "Vraag AI" knop geeft concrete verbeteraanbevelingen in gewone taal
-
----
-
-## Fase 5: Conformance Checking (week 17–19)
-
-### Doelen
-- Vergelijk werkelijk procesverloop met normatief model
-- Aantonen welke cases afwijken en waarom
-
-### Taken
-
-**Engine**
-- [ ] `POST /analysis/conformance` — token replay algoritme
-- [ ] Fitness en precision scores berekenen
-- [ ] Per-case afwijkingsrapport genereren
-- [ ] BPMN XML als normatief model accepteren (upload of Flowable definition)
-
-**UI**
-- [ ] Scherm: Conformance view — fitness gauge, deviations tabel
-- [ ] Case-drill-down: zie exact welke stappen afweken
-- [ ] BPMN model upload voor vergelijking
-
-**Vibe-tests**
-- [ ] `tests/vibe/conformance-check.spec.ts`
-
-**Deliverable:** Klant ziet welke cases conform zijn en welke afwijken
+2. Voeg `Depends(get_current_user)` toe aan alle routers:
+```python
+@router.post("/discover")
+async def discover(request: DiscoverRequest, user = Depends(get_current_user)):
+    ...
+```
 
 ---
 
-## Fase 6: GA-launch & marketing (week 20–22)
+### Stap 3 — Pydantic input validatie + schone error responses
+**Probleem:** Python tracebacks kunnen naar de client lekken. Input niet volledig gevalideerd.
 
-### Doelen
-- Publieke launch van retroductor.nl
-- Eerste betalende klanten
+**Uitvoeren:**
+1. Voeg global exception handler toe in `engine/main.py`:
+```python
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
-### Taken
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log intern:
+    logger.error(f"Onverwachte fout: {exc}", exc_info=True)
+    # Stuur generiek naar client:
+    return JSONResponse(status_code=500, content={"detail": "Interne serverfout"})
+```
 
-**Productie hardening**
-- [ ] Rate limiting per tier op alle endpoints
-- [ ] Log retentie-policy (max opslag per tier)
-- [ ] Monitoring: Sentry (errors) + Railway metrics
-- [ ] GDPR: data verwijdering bij account-opzegging
-- [ ] SSL certificaten, HSTS headers
-
-**Landingspagina retroductor.nl**
-- [ ] Hero + value proposition
-- [ ] Pricing tabel (Free / Starter / Pro)
-- [ ] Demo video of interactieve demo
-- [ ] Wachtlijst / early access formulier
-
-**Launch**
-- [ ] ProductHunt launch voorbereiding
-- [ ] Aankondiging via Conductus gebruikers (early access korting)
-- [ ] Blog: "Process mining voor CMMN — hoe het werkt"
-
----
-
-## Risico-buffer
-
-Wekelijks 2–4 uur buffer inplannen voor:
-- PM4Py library updates/breaking changes
-- Flowable schema-discrepanties
-- Supabase Storage quota issues bij test-data
-- Browser-compatibiliteit van React Flow visualisaties
+2. Controleer alle Pydantic modellen op volledigheid:
+```python
+class DiscoverRequest(BaseModel):
+    project_id: UUID
+    log_path: str = Field(..., max_length=500)
+    # Geen arbitraire string-injectie mogelijk
+```
 
 ---
 
-## Mijlpalen overzicht
+### Stap 4 — Bestandsupload validatie
+**Probleem:** Geen type- en groottevalidatie op geüploade event logs (XES/CSV).
 
-| Mijlpaal | Fase | Verwacht |
-|----------|------|---------|
-| Mining Engine live op Railway | 0 | Week 2 |
-| MVP live op retroductor.nl | 1 | Week 6 |
-| Flowable connector werkend | 2 | Week 9 |
-| Geïntegreerd in Conductus portal | 3 | Week 13 |
-| AI Insights beschikbaar | 4 | Week 16 |
-| Conformance checking live | 5 | Week 19 |
-| Publieke launch retroductor.nl | 6 | Week 22 |
+**Uitvoeren:**
+```python
+# engine/routers/logs.py
+ALLOWED_TYPES = {'text/csv', 'application/xml', 'text/xml'}
+MAX_FILE_SIZE = {
+    'free': 10 * 1024 * 1024,    # 10MB
+    'starter': 100 * 1024 * 1024, # 100MB
+    'pro': 1024 * 1024 * 1024,   # 1GB
+}
+
+@router.post("/upload")
+async def upload_log(file: UploadFile, user = Depends(get_current_user)):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, "Alleen CSV en XES bestanden toegestaan")
+
+    # Lees in chunks om grootte te controleren
+    user_plan = await get_user_plan(user['sub'])
+    max_size = MAX_FILE_SIZE.get(user_plan, MAX_FILE_SIZE['free'])
+
+    content = b''
+    async for chunk in file:
+        content += chunk
+        if len(content) > max_size:
+            raise HTTPException(413, f"Bestand te groot voor {user_plan} plan")
+```
 
 ---
 
-## Definition of Done (per fase)
+## PRIORITEIT 2 — HOOG
 
-1. Alle taken afgevinkt
-2. `./vibe-check.sh` — 0 fouten, 0 console errors
-3. Geen hardcoded secrets in code
-4. Gedeployed naar staging, handmatig getest
-5. README bijgewerkt met nieuwe functionaliteit
+### Stap 5 — React Flow DFG visualisatie (Fase 1 blocker)
+**Probleem:** `@xyflow/react` is geïnstalleerd maar niet geïmplementeerd. Dit blokkeert de MVP.
+**Bestand:** Frontend `src/` — component ontbreekt
+
+**Uitvoeren:**
+1. Maak `src/components/DFGVisualisatie.tsx`:
+```tsx
+import ReactFlow, { Node, Edge } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+
+interface DFGVisualisatieProps {
+  nodes: { id: string; label: string; frequency: number }[]
+  edges: { source: string; target: string; frequency: number }[]
+}
+
+export function DFGVisualisatie({ nodes, edges }: DFGVisualisatieProps) {
+  const rfNodes: Node[] = nodes.map((n, i) => ({
+    id: n.id,
+    data: { label: `${n.label}\n(${n.frequency}x)` },
+    position: { x: (i % 4) * 200, y: Math.floor(i / 4) * 100 },
+  }))
+  const rfEdges: Edge[] = edges.map(e => ({
+    id: `${e.source}-${e.target}`,
+    source: e.source,
+    target: e.target,
+    label: String(e.frequency),
+  }))
+  return <ReactFlow nodes={rfNodes} edges={rfEdges} fitView />
+}
+```
+2. Integreer in de analysis results pagina
+
+**Verificatie:** Vibe-test: na upload en analyse wordt een DFG diagram getoond
+
+---
+
+### Stap 6 — Rate limiting op mining endpoints
+**Probleem:** Zware PM4Py operaties hebben geen per-user quota — één gebruiker kan Railway platleggen.
+
+**Uitvoeren:**
+```python
+# engine/rate_limit.py
+from fastapi import HTTPException
+import time
+from collections import defaultdict
+
+request_counts = defaultdict(list)
+
+def check_rate_limit(user_id: str, max_requests: int = 5, window: int = 60):
+    now = time.time()
+    requests = request_counts[user_id]
+    requests = [r for r in requests if now - r < window]
+    if len(requests) >= max_requests:
+        raise HTTPException(429, "Te veel mining requests. Wacht even.")
+    requests.append(now)
+    request_counts[user_id] = requests
+```
+
+---
+
+### Stap 7 — Plan-check server-side (Pro feature gating)
+**Probleem:** AI Insights is een Pro-feature maar er is geen server-side check of de gebruiker een Pro-abonnement heeft.
+
+**Uitvoeren:**
+```python
+# engine/plan_check.py
+async def require_pro_plan(user = Depends(get_current_user)):
+    plan = await get_user_plan(user['sub'])
+    if plan not in ('pro', 'enterprise'):
+        raise HTTPException(403, "AI Insights is alleen beschikbaar in het Pro plan")
+    return user
+
+@router.post("/insights/ai")
+async def ai_insights(request: InsightsRequest, user = Depends(require_pro_plan)):
+    ...
+```
+
+---
+
+### Stap 8 — Timeout afdwingen op mining jobs
+**Probleem:** PM4Py analyses op grote event logs kunnen uren duren en Railway vastlopen.
+
+**Uitvoeren:**
+```python
+import asyncio
+
+async def run_with_timeout(coro, timeout_seconds: int = 60):
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        raise HTTPException(408, "Analyse timeout bereikt. Probeer met een kleiner event log.")
+```
+
+---
+
+### Stap 9 — Prompt injection preventie voor Claude API
+**Probleem:** Event log data mag niet als directe user-input naar Claude worden gestuurd.
+
+**Uitvoeren:**
+```python
+# Stuur alleen geaggregeerde statistieken, NOOIT ruwe event data
+def prepare_ai_context(analysis_result: dict) -> str:
+    return f"""Je analyseert een businessproces op basis van mining resultaten.
+
+STATISTIEKEN:
+- Aantal activiteiten: {analysis_result['activity_count']}
+- Aantal traces: {analysis_result['trace_count']}
+- Gemiddelde doorlooptijd: {analysis_result['avg_duration']}
+- Top 5 bottlenecks: {analysis_result['top_bottlenecks']}
+
+Geef advies over procesverbetering op basis van bovenstaande statistieken."""
+# NOOIT: f"Analyseer deze event data: {raw_event_log_content}"
+```
+
+---
+
+### Stap 10 — Secrets en .env opruimen
+**Probleem:** `.env.local` bevat `MINING_ENGINE_SECRET`. Geen volledig `.env.example` op root-niveau.
+
+**Uitvoeren:**
+1. Controleer `.gitignore` bevat `.env.local`
+2. Maak `.env.example` aan op root-niveau:
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Mining Engine
+MINING_ENGINE_URL=https://api.retroductor.nl
+MINING_ENGINE_SECRET=
+
+# AI (Pro plan)
+ANTHROPIC_API_KEY=
+```
+3. Voeg `ANTHROPIC_API_KEY` toe aan Railway environment variables
+
+---
+
+## PRIORITEIT 3 — MEDIUM / JURIDISCH
+
+### Stap 11 — Verwerkersovereenkomst (DPA)
+**Probleem:** Klanten uploaden bedrijfseigen event logs. Dit is persoons- en bedrijfsvertrouwelijke data. DPA nodig voor B2B.
+
+**Uitvoeren:**
+1. Stel DPA-template op (juridisch document)
+2. Voeg DPA-acceptatie toe aan registratieflow voor betaalde plannen
+3. Sluit DPA af met Supabase en Vercel
+
+---
+
+### Stap 12 — E2E vibe-test upload → analyse → resultaat
+**Probleem:** Handmatige flow werkt, maar geen geautomatiseerde test.
+
+**Uitvoeren:**
+Voeg toe aan `tests/vibe/` een test die:
+1. Inlogt
+2. CSV/XES bestand uploadt
+3. Analyse start
+4. Wacht op resultaat
+5. Controleert DFG-visualisatie is getoond
+6. `vibeCheck('analyse-resultaat-getoond')` aanroept
+
+---
+
+## STATUS OVERZICHT
+
+| Stap | Prioriteit | Complexiteit | Status |
+|------|-----------|-------------|--------|
+| 1. Multi-tenant RLS | KRITIEK | M | ✅ 2026-03-14 |
+| 2. FastAPI JWT auth | KRITIEK | M | ✅ 2026-03-14 |
+| 3. Pydantic + error handling | KRITIEK | S | ✅ 2026-03-14 |
+| 4. Bestandsupload validatie | KRITIEK | S | ✅ 2026-03-14 |
+| 5. React Flow DFG (Fase 1) | HOOG | M | ✅ al geïmplementeerd |
+| 6. Rate limiting engine | HOOG | S | ✅ 2026-03-14 |
+| 7. Plan-check Pro features | HOOG | S | ✅ 2026-03-14 |
+| 8. Mining job timeout | HOOG | S | ✅ 2026-03-14 |
+| 9. Prompt injection preventie | HOOG | S | ✅ 2026-03-14 |
+| 10. Secrets/.env opruimen | HOOG | S | ✅ 2026-03-14 |
+| 11. DPA opstellen | JURIDISCH | L | ❌ handmatig uitvoeren |
+| 12. E2E vibe-test | MEDIUM | M | ✅ 2026-03-14 |
