@@ -35,6 +35,72 @@ MAX_FILE_SIZE: dict[str, int] = {
 DEFAULT_MAX_FILE_SIZE = MAX_FILE_SIZE["free"]
 
 
+_COLUMN_ALIASES: dict[str, list[str]] = {
+    "case_id": [
+        "case id", "caseid", "case-id", "case_id", "traceid", "trace id", "trace_id",
+        "process_instance", "process instance", "instanceid", "instance id",
+        "case", "trace",
+    ],
+    "activity": [
+        "activity", "activity name", "activityname", "activity_name",
+        "task", "task name", "taskname", "event", "event name", "eventname",
+        "action", "step", "stap", "activiteit",
+    ],
+    "timestamp": [
+        "timestamp", "time", "date", "datetime", "event time", "eventtime",
+        "event_time", "start time", "starttime", "start_time",
+        "complete time", "completetime", "complete_time",
+        "tijdstip", "datum", "tijd",
+    ],
+    "resource": [
+        "resource", "performer", "user", "agent", "employee", "medewerker",
+        "org:resource", "assigned to", "assignedto", "assigned_to",
+        "actor", "uitvoerder",
+    ],
+}
+
+_REQUIRED_COLUMNS = ["case_id", "activity", "timestamp"]
+
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normaliseer kolomnamen naar de verwachte standaardnamen (case_id, activity, timestamp, resource).
+    Accepteert gangbare varianten en is case-insensitief.
+    """
+    # Stap 1: lowercase + strip alle kolomnamen
+    df = df.copy()
+    df.columns = [str(c).lower().strip() for c in df.columns]
+
+    # Stap 2: vervang spaties en koppeltekens door underscores
+    df.columns = [c.replace(" ", "_").replace("-", "_") for c in df.columns]
+
+    # Stap 3: map aliassen naar standaardnamen
+    rename_map: dict[str, str] = {}
+    current_cols = set(df.columns)
+    for standard, aliases in _COLUMN_ALIASES.items():
+        if standard not in current_cols:
+            for alias in aliases:
+                normalized_alias = alias.lower().strip().replace(" ", "_").replace("-", "_")
+                if normalized_alias in current_cols:
+                    rename_map[normalized_alias] = standard
+                    break
+
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    # Stap 4: valideer vereiste kolommen
+    missing = [c for c in _REQUIRED_COLUMNS if c not in df.columns]
+    if missing:
+        found = list(df.columns)
+        raise ValueError(
+            f"Verplichte kolommen ontbreken: {', '.join(missing)}. "
+            f"Gevonden kolommen: {', '.join(found)}. "
+            f"Hernoem je kolommen naar: case_id, activity, timestamp (en optioneel resource)."
+        )
+
+    return df
+
+
 def _parse_file(filename: str, content: bytes) -> pd.DataFrame:
     if filename.endswith(".xes"):
         with tempfile.NamedTemporaryFile(suffix=".xes", delete=False) as f:
@@ -54,7 +120,8 @@ def _parse_file(filename: str, content: bytes) -> pd.DataFrame:
         })
         return df
     else:
-        return pd.read_csv(io.BytesIO(content))
+        df = pd.read_csv(io.BytesIO(content))
+        return _normalize_columns(df)
 
 
 def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
@@ -89,6 +156,13 @@ def _run_analysis(job_id: str, filename: str, content: bytes) -> None:
 
     except TimeoutError as exc:
         logger.warning("[job:%s] timeout na %ds", job_id, MINING_TIMEOUT_SECONDS)
+        supabase.table("mining_jobs").update({
+            "status": "error",
+            "error_message": str(exc),
+            "completed_at": "now()",
+        }).eq("id", job_id).execute()
+    except ValueError as exc:
+        logger.warning("[job:%s] ongeldige invoer: %s", job_id, exc)
         supabase.table("mining_jobs").update({
             "status": "error",
             "error_message": str(exc),
