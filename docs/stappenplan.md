@@ -315,5 +315,5 @@ Voeg toe aan `tests/vibe/` een test die:
 | 8. Mining job timeout | HOOG | S | ✅ 2026-03-14 |
 | 9. Prompt injection preventie | HOOG | S | ✅ 2026-03-14 |
 | 10. Secrets/.env opruimen | HOOG | S | ✅ 2026-03-14 |
-| 11. DPA opstellen | JURIDISCH | L | ❌ handmatig uitvoeren |
+| 11. DPA opstellen | JURIDISCH | L | ✅ 2026-03-16 |
 | 12. E2E vibe-test | MEDIUM | M | ✅ 2026-03-14 |
