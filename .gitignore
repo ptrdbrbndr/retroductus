@@ -6,3 +6,19 @@ dist/
 .env
 engine/.env
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Test artifacts
+playwright-report/
+test-results/
+testing/vibe-core/auth-state.json
+
+# Supabase temp
+supabase/.temp/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+ui/tsconfig.tsbuildinfo
