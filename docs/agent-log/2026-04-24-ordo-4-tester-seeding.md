@@ -180,3 +180,25 @@ cf-mitigated: challenge-or-block
 - Geen `staging.page.tsx` aangeraakt.
 - Geen force-push.
 - Geen secrets in dit rapport.
+
+---
+
+## Addendum — Ordo 4 afgerond 2026-04-24 22:08Z (Legatus)
+
+**Na Beelink-reboot:** Coolify-API reageert weer, `supabase-retroductus.cyberductus.nl/rest/v1/` geeft 401 (gezond) ipv 1033. Supabase-tunnel-fix is impliciet door de reboot gebeurd — vermoedelijk waren Traefik-labels niet toegepast omdat Coolify hing toen de Supabase-stack voor het eerst opstartte.
+
+**Users aangemaakt via `POST /auth/v1/admin/users` met `email_confirm:true`:**
+
+- `pieter@debrabander.com` — id `bbe7274b-de15-4089-8064-14567a40aa9b` (owner, `is_admin=true`)
+- `tester1@retroductor.nl` — id `1847f031-3f82-4f4d-8d56-1dc91ae7f0da` (free-plan)
+- `tester2@retroductor.nl` — id `a3282711-9316-4d54-91a1-ee0d1321662d` (free-plan)
+
+**Seed via PostgREST (equivalent aan `seed-testers.sql`):** `user_plans` (3 × plan=free) + PATCH admin=true op Pieter + `dpa_acceptance` (3 × version=2026-04-24, ip=0.0.0.0).
+
+**Login-test:** `POST /auth/v1/token?grant_type=password` voor Pieter → 200 OK + access_token (3600s). Auth-flow werkt.
+
+**Credentials:** wachtwoorden verhuisd naar `credentials.md` sectie "retroductus interne testers (Fase 2, 2026-04-24)". `.tmp/credentials-orig-5.txt` gewist.
+
+**Openstaande notitie:** `tester1@retroductor.nl` + `tester2@retroductor.nl` mailboxen bestaan niet — wachtwoord-reset lukt niet via mail-flow. Voor reset: admin-endpoint of herconfigureren naar `pieter+test*@debrabander.com`.
+
+**Cross-project:** zelfde 1033-pattern op iductus/deductus/superductus/ONS/eductus Supabase-stacks — niet hier opgelost, staat als backlog-item.
