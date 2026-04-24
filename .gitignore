@@ -4,6 +4,7 @@ node_modules/
 dist/
 .env
 *.env*.local
+engine/.env
 .DS_Store
 
 # Python

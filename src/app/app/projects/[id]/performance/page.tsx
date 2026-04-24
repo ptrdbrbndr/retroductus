@@ -1,166 +1,112 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import ExportMenu from '@/components/ExportMenu'
 
-interface PerformanceItem {
+interface Bottleneck {
   activity: string
-  avg_duration_sec: number
-  case_count: number
-}
-
-interface MiningJob {
-  id: string
-  filename: string | null
-  status: string
-  result: {
-    performance: PerformanceItem[]
-    dfg_nodes: { activity: string; count: number; avg_duration_sec: number | null }[]
-  } | null
-}
-
-function formatDurationLabel(sec: number): string {
-  if (sec < 60) return `${sec.toFixed(0)}s`
-  if (sec < 3600) return `${(sec / 60).toFixed(1)}m`
-  if (sec < 86400) return `${(sec / 3600).toFixed(1)}u`
-  return `${(sec / 86400).toFixed(1)}d`
+  avg_duration: number
+  count: number
 }
 
 export default function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
-  const [job, setJob] = useState<MiningJob | null>(null)
-  const [id, setId] = useState<string | null>(null)
+  const { id } = use(params)
+  const [bottlenecks, setBottlenecks] = useState<Bottleneck[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    params.then(p => setId(p.id))
-  }, [params])
+    async function load() {
+      const supabase = createClient()
+      const { data: job } = await supabase
+        .from('mining_jobs')
+        .select('result')
+        .eq('id', id)
+        .single()
 
-  useEffect(() => {
-    if (!id) return
-    const sb = createClient()
-    sb.from('mining_jobs').select('id, filename, status, result').eq('id', id).single()
-      .then(({ data }) => setJob(data as MiningJob | null))
+      if (job?.result?.dfg_edges) {
+        const edgesWithDuration = job.result.dfg_edges
+          .filter((e: any) => e.avg_duration_sec != null && e.avg_duration_sec > 0)
+          .map((e: any) => ({
+            activity: `${e.from ?? e.source} → ${e.to ?? e.target}`,
+            avg_duration: Math.round(e.avg_duration_sec / 3600),
+            count: e.count,
+          }))
+          .sort((a: Bottleneck, b: Bottleneck) => b.avg_duration - a.avg_duration)
+        setBottlenecks(edgesWithDuration)
+      }
+      setLoading(false)
+    }
+    load()
   }, [id])
 
-  if (!job) {
-    return (
-      <div data-testid="performance-loading" className="text-center py-20">
-        <div style={{ color: 'rgba(255,255,255,0.4)' }}>Laden...</div>
-      </div>
-    )
-  }
+  const top10 = bottlenecks.slice(0, 10)
 
-  const performance = job.result?.performance ?? []
-  const sortedByDuration = [...performance].sort((a, b) => b.avg_duration_sec - a.avg_duration_sec)
-  const top10 = sortedByDuration.slice(0, 10)
-
-  const chartData = top10.map(p => ({
-    name: p.activity.length > 20 ? p.activity.slice(0, 18) + '…' : p.activity,
-    fullName: p.activity,
-    duur: Math.round(p.avg_duration_sec),
-    cases: p.case_count,
-  }))
+  const csvData = useMemo(() => {
+    if (bottlenecks.length === 0) return undefined
+    const rows = bottlenecks.map(b => `"${b.activity}",${b.avg_duration},${b.count}`)
+    return ['overgang,avg_duur_uur,aantal', ...rows].join('\n')
+  }, [bottlenecks])
 
   return (
     <div data-testid="performance-page">
-      {/* Header */}
-      <div className="mb-8">
-        <a href={`/app/projects/${id}`} data-testid="back-to-discovery"
-          className="text-sm" style={{ color: 'var(--retro-teal)' }}>
-          ← Terug naar discovery
-        </a>
-        <h1 className="text-2xl font-semibold text-white mt-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-          Performance — {job.filename || `Analyse ${id?.slice(0, 8)}`}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-semibold text-white" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+          Bottleneck analyse
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
-          Gemiddelde doorlooptijden per activiteit
-        </p>
+        {!loading && bottlenecks.length > 0 && (
+          <ExportMenu targetId="viz-container-performance" filename={`bottlenecks-${id}`} csvData={csvData} csvFilename="bottlenecks.csv" />
+        )}
       </div>
 
-      {performance.length === 0 ? (
-        <div className="rounded-xl p-10 text-center" style={{ border: '1px dashed rgba(255,255,255,0.15)' }}
-          data-testid="no-performance-data">
-          <div className="text-3xl mb-3">⚠️</div>
-          <div className="text-white">Geen doorlooptijddata beschikbaar</div>
-          <div className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            Voeg een <code>duration_ms</code> kolom toe aan je CSV om performance te analyseren.
-          </div>
-        </div>
+      {loading ? (
+        <p className="text-gray-400">Laden...</p>
+      ) : bottlenecks.length === 0 ? (
+        <p className="text-gray-400">Geen duurdata beschikbaar. Analyseer het log opnieuw voor doorlooptijden per overgang.</p>
       ) : (
-        <div className="space-y-8">
-          {/* Bar chart — top bottlenecks */}
-          <div className="rounded-xl p-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-            data-testid="bottleneck-chart">
-            <h2 className="text-base font-semibold text-white mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Top bottlenecks — gemiddelde doorlooptijd
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 40, top: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                  tickFormatter={formatDurationLabel}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 11 }}
-                  width={130}
-                  axisLine={false}
-                  tickLine={false}
-                />
+        <div id="viz-container-performance" className="space-y-8">
+          <div data-testid="bottleneck-chart" className="rounded-xl p-6" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <h2 className="text-white font-medium mb-6">Top 10 langste overgangen (uur)</h2>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={top10} layout="vertical" margin={{ left: 8, right: 24, top: 0, bottom: 0 }}>
+                <XAxis type="number" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                <YAxis dataKey="activity" type="category" width={200} tick={{ fill: '#9ca3af', fontSize: 11 }} />
                 <Tooltip
-                  contentStyle={{ background: '#0B1D3A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                  labelStyle={{ color: 'white', fontWeight: 600 }}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(value: any, _name: any, item: any) => [
-                    formatDurationLabel(Number(value)),
-                    `Gem. duur — ${item?.payload?.cases ?? ''} cases`,
-                  ]}
-                  labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullName ?? ''}
+                  contentStyle={{ background: '#0f1e35', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0' }}
+                  formatter={(value: any) => [`${value} uur`, 'Gem. duur']}
                 />
-                <Bar dataKey="duur" fill="#2EC4B6" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="avg_duration" radius={[0, 4, 4, 0]}>
+                  {top10.map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#4a9eff'} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Bottleneck tabel */}
-          <div data-testid="bottleneck-table">
-            <h2 className="text-lg font-semibold text-white mb-4" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Alle activiteiten
-            </h2>
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
-                    <th className="px-5 py-3 text-left font-medium">#</th>
-                    <th className="px-5 py-3 text-left font-medium">Activiteit</th>
-                    <th className="px-5 py-3 text-right font-medium">Gem. duur</th>
-                    <th className="px-5 py-3 text-right font-medium">Cases</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedByDuration.map((item, i) => (
-                    <tr key={i} data-testid={`perf-row-${i}`}
-                      style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.8)' }}>
-                      <td className="px-5 py-3" style={{ color: 'rgba(255,255,255,0.3)' }}>{i + 1}</td>
-                      <td className="px-5 py-3">{item.activity}</td>
-                      <td className="px-5 py-3 text-right font-medium" style={{ color: i < 3 ? '#ef4444' : 'var(--retro-teal)' }}>
-                        {formatDurationLabel(item.avg_duration_sec)}
-                      </td>
-                      <td className="px-5 py-3 text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        {item.case_count.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div data-testid="bottleneck-table" className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+              <h2 className="text-white font-medium">Alle overgangen gesorteerd op duur</h2>
             </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-400 text-left" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <th className="px-5 py-3">Overgang</th>
+                  <th className="px-5 py-3 text-right">Gem. duur (uur)</th>
+                  <th className="px-5 py-3 text-right">Aantal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bottlenecks.map((b, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <td className="px-5 py-3 text-gray-300">{b.activity}</td>
+                    <td className="px-5 py-3 text-right text-white">{b.avg_duration}</td>
+                    <td className="px-5 py-3 text-right text-gray-400">{b.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

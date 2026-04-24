@@ -1,56 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const formData = await request.formData()
-  const file = formData.get('file') as File | null
-
+  const file = formData.get('file') as File
   if (!file) {
-    return NextResponse.json({ error: 'Geen bestand' }, { status: 400 })
+    return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
+
+  const engineFormData = new FormData()
+  engineFormData.append('file', file)
+  engineFormData.append('tenant_id', user.id)
 
   const engineUrl = process.env.MINING_ENGINE_URL
   const engineSecret = process.env.MINING_ENGINE_SECRET
 
-  if (!engineUrl || !engineSecret) {
-    return NextResponse.json({ error: 'Engine niet geconfigureerd' }, { status: 503 })
+  const response = await fetch(`${engineUrl}/logs`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${engineSecret}` },
+    body: engineFormData,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    return NextResponse.json({ error: text }, { status: response.status })
   }
 
-  // Stuur het CSV bestand door naar de Mining Engine
-  const engineForm = new FormData()
-  engineForm.append('file', file)
-  engineForm.append('tenant_id', user.id)
+  const result = await response.json()
 
-  let engineResp: Response
-  try {
-    engineResp = await fetch(`${engineUrl}/logs`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${engineSecret}` },
-      body: engineForm,
-    })
-  } catch {
-    return NextResponse.json({ error: 'Engine niet bereikbaar' }, { status: 503 })
-  }
-
-  if (!engineResp.ok) {
-    const detail = await engineResp.text()
-    return NextResponse.json({ error: `Engine fout: ${detail}` }, { status: 500 })
-  }
-
-  const result = await engineResp.json()
-
-  // Sla user_id op bij de job (engine heeft het aangemaakt met tenant_id)
+  // Update user_id on the job
   await supabase
     .from('mining_jobs')
-    .update({ user_id: user.id })
+    .update({ user_id: user.id, filename: file.name })
     .eq('id', result.job_id)
 
-  return NextResponse.json({ job_id: result.job_id, event_count: result.event_count })
+  return NextResponse.json(result)
 }

@@ -1,49 +1,35 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import DfgSection from '@/components/DfgSection'
+import ExportMenu from '@/components/ExportMenu'
 
-interface DfgNode {
-  activity: string
+interface DFGNode {
+  id?: string
+  activity?: string
   count: number
-  avg_duration_sec: number | null
+  avg_duration_sec?: number | null
 }
-
-interface DfgEdge {
-  from: string
-  to: string
+interface DFGEdge {
+  source?: string
+  from?: string
+  target?: string
+  to?: string
   count: number
+  avg_duration?: number
 }
-
-interface MiningResult {
-  dfg_nodes: DfgNode[]
-  dfg_edges: DfgEdge[]
-  start_activities: Record<string, number>
-  end_activities: Record<string, number>
-  performance: { activity: string; avg_duration_sec: number; case_count: number }[]
-}
-
-interface MiningJob {
-  id: string
-  filename: string | null
-  status: string
-  event_count: number | null
-  created_at: string
-  completed_at: string | null
-  error_message: string | null
-  result: MiningResult | null
-}
-
-function formatDuration(sec: number | null): string {
-  if (sec === null) return '—'
-  if (sec < 60) return `${sec.toFixed(0)}s`
-  if (sec < 3600) return `${(sec / 60).toFixed(1)} min`
-  if (sec < 86400) return `${(sec / 3600).toFixed(1)} uur`
-  return `${(sec / 86400).toFixed(1)} dagen`
+interface DiscoveryResult {
+  dfg_nodes?: DFGNode[]
+  dfg_edges?: DFGEdge[]
+  start_activities?: Record<string, number>
+  end_activities?: Record<string, number>
+  event_count?: number
+  case_count?: number
+  activity_count?: number
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-
   const { data: job } = await supabase
     .from('mining_jobs')
     .select('*')
@@ -52,175 +38,133 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   if (!job) notFound()
 
-  const j = job as MiningJob
-  const result = j.result as MiningResult | null
+  const result: DiscoveryResult = job.result || {}
+  const edges = (result.dfg_edges || []).sort((a, b) => b.count - a.count).slice(0, 20)
+  const nodes = result.dfg_nodes || []
+  const startActs = result.start_activities || {}
+  const endActs = result.end_activities || {}
+
+  // Normalize nodes: engine kan 'activity' of 'id' gebruiken als naam
+  const normalizedNodes = nodes.map(n => ({
+    activity: n.activity ?? n.id ?? '',
+    count: n.count,
+    avg_duration_sec: n.avg_duration_sec ?? null,
+  }))
 
   return (
     <div data-testid="project-detail">
-      {/* Header */}
-      <div className="mb-8">
-        <a href="/app" data-testid="back-to-dashboard" className="text-sm" style={{ color: 'var(--retro-teal)' }}>
-          ← Terug naar projecten
-        </a>
-        <div className="flex items-start justify-between mt-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-white" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              {j.filename || `Analyse ${j.id.slice(0, 8)}`}
-            </h1>
-            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {j.event_count?.toLocaleString()} events ·{' '}
-              {new Date(j.created_at).toLocaleDateString('nl-NL', { dateStyle: 'long' })}
-            </p>
-          </div>
-          {j.status === 'done' && (
-            <a
-              href={`/app/projects/${id}/performance`}
-              data-testid="nav-performance"
-              className="px-4 py-2 rounded-lg text-sm font-medium"
-              style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              📈 Performance
-            </a>
-          )}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-semibold text-white" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+            {job.filename || job.id}
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">{new Date(job.created_at).toLocaleDateString('nl-NL', { dateStyle: 'long' })}</p>
         </div>
+        {job.status === 'done' && normalizedNodes.length > 0 && (
+          <ExportMenu targetId="viz-container-dfg" filename={`dfg-${job.id}`} />
+        )}
       </div>
 
-      {j.status === 'error' && (
-        <div className="rounded-xl p-6 mb-6" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
-          data-testid="job-error">
-          <div className="text-white font-medium mb-1">Analyse mislukt</div>
-          <div className="text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>{j.error_message}</div>
+      {job.status === 'error' ? (
+        <div className="text-center py-16 rounded-xl" style={{ border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>
+          <p className="text-red-400 font-medium mb-2">Analyse mislukt</p>
+          {job.error_message && (
+            <p className="text-gray-400 text-sm max-w-lg mx-auto mb-6">{job.error_message}</p>
+          )}
+          <a
+            href="/app/projects/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white"
+            style={{ background: 'linear-gradient(135deg, #4a9eff 0%, #7c3aed 100%)' }}
+          >
+            Nieuw bestand uploaden
+          </a>
         </div>
-      )}
-
-      {j.status === 'running' && (
-        <div className="rounded-xl p-6 mb-6 text-center" style={{ border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}
-          data-testid="job-running">
-          <div className="text-2xl mb-2">⏳</div>
-          <div className="text-white font-medium">Analyse wordt uitgevoerd...</div>
-          <div className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Vernieuw de pagina om de status te zien.</div>
+      ) : job.status !== 'done' ? (
+        <div className="text-center py-16 text-gray-400">
+          <p>Status: <strong className="text-white">{job.status}</strong></p>
         </div>
-      )}
-
-      {result && (
-        <div className="space-y-8">
-          {/* Statistieken */}
-          <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
-            <div className="rounded-xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="text-sm mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Activiteiten</div>
-              <div className="text-2xl font-semibold text-white">{result.dfg_nodes.length}</div>
-            </div>
-            <div className="rounded-xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="text-sm mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Unieke paden</div>
-              <div className="text-2xl font-semibold text-white">{result.dfg_edges.length}</div>
-            </div>
-            <div className="rounded-xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="text-sm mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Startactiviteiten</div>
-              <div className="text-2xl font-semibold text-white">{Object.keys(result.start_activities).length}</div>
-            </div>
-          </div>
-
-          {/* Process flow — top paden */}
-          <div data-testid="dfg-edges">
-            <h2 className="text-lg font-semibold text-white mb-4" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Procesflow — meest voorkomende paden
-            </h2>
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
-                    <th className="px-5 py-3 text-left font-medium">Van</th>
-                    <th className="px-5 py-3 text-left font-medium">Naar</th>
-                    <th className="px-5 py-3 text-right font-medium">Frequentie</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.dfg_edges.slice(0, 20).map((edge, i) => (
-                    <tr
-                      key={i}
-                      data-testid={`edge-${i}`}
-                      style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.8)' }}
-                    >
-                      <td className="px-5 py-3">{edge.from}</td>
-                      <td className="px-5 py-3" style={{ color: 'var(--retro-teal)' }}>→ {edge.to}</td>
-                      <td className="px-5 py-3 text-right font-medium">{edge.count.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Activiteiten tabel */}
-          <div data-testid="dfg-nodes">
-            <h2 className="text-lg font-semibold text-white mb-4" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Activiteiten
-            </h2>
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
-                    <th className="px-5 py-3 text-left font-medium">Activiteit</th>
-                    <th className="px-5 py-3 text-right font-medium">Aantal</th>
-                    <th className="px-5 py-3 text-right font-medium">Gem. duur</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.dfg_nodes
-                    .sort((a, b) => b.count - a.count)
-                    .map((node, i) => (
-                      <tr
-                        key={i}
-                        data-testid={`node-${i}`}
-                        style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.8)' }}
-                      >
-                        <td className="px-5 py-3">{node.activity}</td>
-                        <td className="px-5 py-3 text-right">{node.count.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                          {formatDuration(node.avg_duration_sec)}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Start/end activiteiten */}
-          <div className="grid grid-cols-2 gap-6">
-            <div data-testid="start-activities">
-              <h2 className="text-base font-semibold text-white mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-                Startactiviteiten
-              </h2>
-              <div className="space-y-2">
-                {Object.entries(result.start_activities).sort(([, a], [, b]) => b - a).map(([act, cnt]) => (
-                  <div key={act} className="flex justify-between px-4 py-2 rounded-lg text-sm"
-                    style={{ background: 'rgba(46,196,182,0.08)', border: '1px solid rgba(46,196,182,0.15)' }}>
-                    <span className="text-white">{act}</span>
-                    <span style={{ color: 'var(--retro-teal)' }}>{cnt}</span>
-                  </div>
-                ))}
+      ) : (
+        <div id="viz-container-dfg" className="space-y-6">
+          {/* Stats */}
+          <div data-testid="stats-grid" className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Events', value: result.event_count ?? '—' },
+              { label: 'Cases', value: result.case_count ?? '—' },
+              { label: 'Activiteiten', value: result.activity_count ?? nodes.length },
+            ].map(stat => (
+              <div key={stat.label} className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <p className="text-3xl font-semibold text-white">{stat.value}</p>
+                <p className="text-gray-400 text-sm mt-1">{stat.label}</p>
               </div>
+            ))}
+          </div>
+
+          {/* DFG visualisatie */}
+          {normalizedNodes.length > 0 && (
+            <DfgSection
+              nodes={normalizedNodes}
+              edges={edges}
+              startActivities={startActs}
+              endActivities={endActs}
+            />
+          )}
+
+          {/* Top paths tabel */}
+          <div data-testid="dfg-edges" className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+              <h2 className="text-white font-medium">Top 20 paden</h2>
             </div>
-            <div data-testid="end-activities">
-              <h2 className="text-base font-semibold text-white mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-                Eindactiviteiten
-              </h2>
-              <div className="space-y-2">
-                {Object.entries(result.end_activities).sort(([, a], [, b]) => b - a).map(([act, cnt]) => (
-                  <div key={act} className="flex justify-between px-4 py-2 rounded-lg text-sm"
-                    style={{ background: 'rgba(27,107,147,0.1)', border: '1px solid rgba(27,107,147,0.2)' }}>
-                    <span className="text-white">{act}</span>
-                    <span style={{ color: '#1B6B93' }}>{cnt}</span>
-                  </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-400 text-left" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <th className="px-5 py-3">Van</th>
+                  <th className="px-5 py-3">Naar</th>
+                  <th className="px-5 py-3 text-right">Aantal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {edges.map((e, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <td className="px-5 py-3 text-gray-300">{e.source ?? e.from}</td>
+                    <td className="px-5 py-3 text-gray-300">{e.target ?? e.to}</td>
+                    <td className="px-5 py-3 text-right text-white">{e.count}</td>
+                  </tr>
                 ))}
-              </div>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Start/eind activiteiten */}
+          <div className="grid grid-cols-2 gap-4">
+            <div data-testid="start-activities" className="rounded-xl p-5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <h3 className="text-white font-medium mb-3">Start activiteiten</h3>
+              {Object.entries(startActs).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm py-1">
+                  <span className="text-gray-400">{k}</span>
+                  <span className="text-white">{v}</span>
+                </div>
+              ))}
+            </div>
+            <div data-testid="end-activities" className="rounded-xl p-5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <h3 className="text-white font-medium mb-3">Eind activiteiten</h3>
+              {Object.entries(endActs).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm py-1">
+                  <span className="text-gray-400">{k}</span>
+                  <span className="text-white">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Alle activiteiten (chips) */}
+          <div data-testid="dfg-nodes" className="rounded-xl p-5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <h3 className="text-white font-medium mb-3">Alle activiteiten</h3>
+            <div className="flex flex-wrap gap-2">
+              {normalizedNodes.map(n => (
+                <span key={n.activity} className="px-3 py-1 rounded-full text-sm" style={{ background: 'rgba(74,158,255,0.1)', color: '#4a9eff' }}>
+                  {n.activity} <span className="opacity-60">({n.count})</span>
+                </span>
+              ))}
             </div>
           </div>
         </div>

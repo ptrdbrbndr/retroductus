@@ -2,93 +2,75 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
-  const supabase = createClient()
-
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-
+    const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      window.location.href = '/app'
+      router.refresh()
+      router.push('/app')
     }
   }
 
   return (
-    <div
-      className="rounded-xl p-8"
-      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-      data-testid="login-form"
-    >
-      <h1 className="text-white text-2xl font-semibold mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+    <div className="rounded-2xl p-8" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <h1 className="text-2xl font-semibold text-white mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
         Inloggen
       </h1>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form data-testid="login-form" onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>E-mailadres</label>
+          <label className="block text-sm text-gray-400 mb-1">E-mailadres</label>
           <input
+            data-testid="login-email"
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            data-testid="login-email"
-            className="w-full px-4 py-3 rounded-lg text-white outline-none"
-            style={{
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.15)',
-            }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white/6 border border-white/10"
+            placeholder="naam@bedrijf.nl"
           />
         </div>
         <div>
-          <label className="block text-sm mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Wachtwoord</label>
+          <label className="block text-sm text-gray-400 mb-1">Wachtwoord</label>
           <input
+            data-testid="login-password"
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            data-testid="login-password"
-            className="w-full px-4 py-3 rounded-lg text-white outline-none"
-            style={{
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.15)',
-            }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white/6 border border-white/10"
+            placeholder="••••••••"
           />
         </div>
+        {error && <p className="text-red-400 text-sm">{error}</p>}
         <button
+          data-testid="login-submit"
           type="submit"
           disabled={loading}
-          data-testid="login-submit"
-          className="w-full py-3 rounded-lg font-medium text-white gradient-bg"
-          style={{ opacity: loading ? 0.7 : 1 }}
+          className="w-full py-3 rounded-lg font-medium text-white text-sm disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #4a9eff 0%, #7c3aed 100%)' }}
         >
           {loading ? 'Bezig...' : 'Inloggen'}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <p className="text-center text-sm text-gray-400 mt-6">
         Nog geen account?{' '}
-        <a href="/register" className="underline" style={{ color: 'var(--retro-teal)' }}>
-          Registreren
-        </a>
+        <Link href="/register" className="text-blue-400 hover:underline">Registreer hier</Link>
       </p>
     </div>
   )

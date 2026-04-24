@@ -1,0 +1,7 @@
+case_id,activity,timestamp,resource,duration_ms
+CASE-001,Start,2024-01-01 09:00:00,alice,1000
+CASE-001,Verwerken,2024-01-01 09:05:00,bob,300000
+CASE-001,Afronden,2024-01-01 09:30:00,alice,60000
+CASE-002,Start,2024-01-02 10:00:00,alice,1000
+CASE-002,Verwerken,2024-01-02 10:10:00,carol,240000
+CASE-002,Afronden,2024-01-02 10:35:00,bob,45000

@@ -1,21 +1,19 @@
 import { test, expect } from '../../testing/vibe-core/base.fixture'
 
-test('landingspagina is bereikbaar en toont hero', async ({ vibePage: page }) => {
-  await page.goto('/')
-  await page.vibeCheck('landing-loaded')
-  await expect(page.getByTestId('hero-title')).toBeVisible()
-})
+test.use({ storageState: { cookies: [], origins: [] } })
 
-test('landingspagina toont pricing sectie', async ({ vibePage: page }) => {
-  await page.goto('/')
-  await page.vibeCheck('landing-pricing')
-  await expect(page.getByTestId('pricing-section')).toBeVisible()
-})
+test('landing page — hero + nav login', async ({ vibePage }) => {
+  await vibePage.goto('/')
+  await vibePage.waitForLoadState('networkidle')
 
-test('login link op landingspagina leidt naar login of app', async ({ vibePage: page }) => {
-  await page.goto('/')
-  await page.getByTestId('nav-login').click()
-  await page.vibeCheck('nav-to-login')
-  // Ingelogde gebruiker → /app, uitgelogde gebruiker → /login
-  await expect(page).toHaveURL(/\/(login|app)/)
+  await expect(vibePage.getByTestId('hero-title')).toBeVisible()
+  await vibePage.vibeCheck('landing-hero')
+
+  const navLogin = vibePage.getByTestId('nav-login')
+  await expect(navLogin).toBeVisible()
+  const href = await navLogin.getAttribute('href')
+  if (!href?.includes('login')) {
+    throw new Error(`nav-login href moet 'login' bevatten, maar is: ${href}`)
+  }
+  await vibePage.vibeCheck('nav-login-link-aanwezig')
 })

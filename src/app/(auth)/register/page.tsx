@@ -2,112 +2,119 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+
+const DPA_VERSION = '1.0'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [done, setDone] = useState(false)
+  const [dpaAccepted, setDpaAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
 
-  const supabase = createClient()
-
-  async function handleRegister(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!dpaAccepted) {
+      setError('Je moet de Verwerkersovereenkomst accepteren om verder te gaan.')
+      return
+    }
     setLoading(true)
     setError('')
-
-    const { error } = await supabase.auth.signUp({
+    const supabase = createClient()
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
     })
-
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
-    } else {
-      setDone(true)
+      return
     }
+    if (data.user) {
+      await supabase.from('dpa_acceptance').insert({
+        user_id: data.user.id,
+        dpa_version: DPA_VERSION,
+      })
+    }
+    setDone(true)
   }
 
   if (done) {
     return (
-      <div
-        className="rounded-xl p-8 text-center"
-        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-        data-testid="register-done"
-      >
+      <div data-testid="register-done" className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="text-4xl mb-4">✉️</div>
-        <h1 className="text-white text-xl font-semibold mb-2" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-          Controleer je e-mail
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)' }}>
-          We hebben een bevestigingslink gestuurd naar <strong className="text-white">{email}</strong>.
-          Klik op de link om je account te activeren.
-        </p>
+        <h2 className="text-xl font-semibold text-white mb-2">Controleer je e-mail</h2>
+        <p className="text-gray-400 text-sm">We hebben een bevestigingslink naar <strong className="text-white">{email}</strong> gestuurd.</p>
       </div>
     )
   }
 
   return (
-    <div
-      className="rounded-xl p-8"
-      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-      data-testid="register-form"
-    >
-      <h1 className="text-white text-2xl font-semibold mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+    <div className="rounded-2xl p-8" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <h1 className="text-2xl font-semibold text-white mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
         Account aanmaken
       </h1>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleRegister} className="space-y-4">
+      <form data-testid="register-form" onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>E-mailadres</label>
+          <label className="block text-sm text-gray-400 mb-1">E-mailadres</label>
           <input
+            data-testid="register-email"
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            data-testid="register-email"
-            className="w-full px-4 py-3 rounded-lg text-white outline-none"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)' }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            placeholder="naam@bedrijf.nl"
           />
         </div>
         <div>
-          <label className="block text-sm mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Wachtwoord</label>
+          <label className="block text-sm text-gray-400 mb-1">Wachtwoord</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             minLength={8}
-            data-testid="register-password"
-            className="w-full px-4 py-3 rounded-lg text-white outline-none"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)' }}
+            className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            placeholder="Minimaal 8 tekens"
           />
         </div>
+        <div className="flex items-start gap-3">
+          <input
+            data-testid="register-dpa-checkbox"
+            type="checkbox"
+            id="dpa-accept"
+            checked={dpaAccepted}
+            onChange={e => setDpaAccepted(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-600 accent-blue-500 cursor-pointer"
+          />
+          <label htmlFor="dpa-accept" className="text-sm text-gray-400 leading-relaxed cursor-pointer">
+            Ik accepteer de{' '}
+            <Link href="/dpa" target="_blank" className="text-blue-400 hover:underline">
+              Verwerkersovereenkomst
+            </Link>
+            {' '}(vereist voor het uploaden van bedrijfsdata)
+          </label>
+        </div>
+        {error && <p data-testid="register-error" className="text-red-400 text-sm">{error}</p>}
         <button
-          type="submit"
-          disabled={loading}
           data-testid="register-submit"
-          className="w-full py-3 rounded-lg font-medium text-white gradient-bg"
-          style={{ opacity: loading ? 0.7 : 1 }}
+          type="submit"
+          disabled={loading || !dpaAccepted}
+          className="w-full py-3 rounded-lg font-medium text-white text-sm disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #4a9eff 0%, #7c3aed 100%)' }}
         >
-          {loading ? 'Bezig...' : 'Account aanmaken'}
+          {loading ? 'Bezig...' : 'Registreer'}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <p className="text-center text-sm text-gray-400 mt-6">
         Al een account?{' '}
-        <a href="/login" className="underline" style={{ color: 'var(--retro-teal)' }}>
-          Inloggen
-        </a>
+        <Link href="/login" className="text-blue-400 hover:underline">Inloggen</Link>
       </p>
     </div>
   )

@@ -13,9 +13,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -27,13 +25,25 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Bescherm /app routes — redirect naar login als niet ingelogd
-  if (!user && request.nextUrl.pathname.startsWith('/app')) {
+  const { pathname, searchParams } = request.nextUrl
+
+  // Embedded mode: als ?embedded=true in URL staat, sla op als cookie
+  if (searchParams.get('embedded') === 'true') {
+    supabaseResponse.cookies.set('retroductus_embedded', '1', {
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 8, // 8 uur
+    })
+  }
+
+  // Protect /app routes
+  if (pathname.startsWith('/app') && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Ingelogde gebruiker naar /app als ze op auth pagina's komen
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  // Redirect logged-in users away from auth pages
+  if ((pathname === '/login' || pathname === '/register') && user) {
     return NextResponse.redirect(new URL('/app', request.url))
   }
 

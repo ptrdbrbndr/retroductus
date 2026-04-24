@@ -3,12 +3,15 @@ import pandas as pd
 import psycopg2
 
 
-def extract_event_log(flowable_tenant_id: str) -> pd.DataFrame:
+def extract_event_log(flowable_tenant_id: str, db_url: str | None = None) -> pd.DataFrame:
     """
     Haal event log op uit Flowable historische tabellen.
     Geeft een DataFrame terug in XES-formaat (case_id, activity, timestamp, resource).
+
+    Als db_url meegegeven is, wordt die gebruikt; anders FLOWABLE_DB_URL env var.
     """
-    db_url = os.getenv("FLOWABLE_DB_URL")
+    if not db_url:
+        db_url = os.getenv("FLOWABLE_DB_URL")
     if not db_url:
         raise RuntimeError("FLOWABLE_DB_URL is niet geconfigureerd")
 
