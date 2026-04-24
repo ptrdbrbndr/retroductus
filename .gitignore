@@ -4,3 +4,22 @@ node_modules/
 dist/
 *.env*.local
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Test artifacts
+playwright-report/
+test-results/
+testing/vibe-core/auth-state.json
+
+# Supabase temp
+supabase/.temp/
+
+# Agent tijdelijk (secrets, raw API responses)
+.tmp/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+ui/tsconfig.tsbuildinfo
