@@ -50,7 +50,7 @@ Alle 7 migraties draaien schoon op een verse stack.
 
 Alle `*.cyberductus.nl` Supabase-FQDN's geven **Cloudflare error 1033** (tunnel hostname-ingress ontbreekt):
 
-```
+```text
 https://supabase-retroductus.cyberductus.nl/auth/v1/admin/users    → HTTP 530 / error 1033
 https://supabase-iductus.cyberductus.nl/rest/v1/                   → HTTP 530 / error 1033
 https://supabase-deductus.cyberductus.nl/rest/v1/                  → HTTP 530 / error 1033
@@ -84,6 +84,7 @@ Dit is **infra-werk buiten Ordo 4**. Ik rapporteer aan Legatus in plaats van doo
 
    # Tester1 + Tester2 idem
    ```
+
 3. **Seed draaien:** `supabase/seed-testers.sql` via Supabase Studio SQL-editor of `psql`.
 4. **Verificatie:**
 
@@ -117,3 +118,65 @@ Dit is **infra-werk buiten Ordo 4**. Ik rapporteer aan Legatus in plaats van doo
 3. `.tmp/credentials-orig-5.txt` wachtwoorden overnemen naar `credentials.md` en file wissen.
 4. Beslissing: `tester1@retroductor.nl` en `tester2@retroductor.nl` ofwel alias-mailboxen inrichten bij mijn.host, ofwel fallback `pieter+test1@debrabander.com`.
 5. Superductus `projects-data.ts` voortgang-veld updaten (Ordo 11 — nu nog niet, eerst Ordo 4 volledig afgerond).
+
+---
+
+## Addendum — Supabase-tunnel-fix + user-seed (22:0xZ, Centurio Janus, 2e dispatch)
+
+**Status: niet voltooid — harde infra-blokker op Beelink.**
+
+### Wat geprobeerd
+
+1. **SSH naar `ptrdbrbndr@192.168.68.69`** — ping werkt (1 ms RTT), TCP-connect op poort 22 komt op, maar `sshd` zendt geen banner: `Connection timed out during banner exchange`. 3 retries met oplopende `ConnectTimeout` (10s → 30s), met en zonder expliciete `-i id_ed25519` — alle identiek gefaald.
+2. **Coolify API direct (`http://192.168.68.69:8000`)** — TCP-connect lukt, maar HTTP-response komt nooit (8s timeout met 0 bytes received). Portscan `22, 80, 443, 2222, 8000, 8080, 8443` — alle 000.
+3. **Coolify API via publiek (`https://coolify.cyberductus.nl/api/v1/services`)** — geeft 302 naar CF Access login. Het beschikbare CF Access service-token `vercel-retroductus-engine` is gebonden aan de engine-AUD (`8bcb4eff...`), niet aan de Coolify-AUD (`59efcd4990...`) → geen bypass mogelijk zonder nieuw service-token aanmaken, wat zelf Coolify-toegang vereist.
+
+**Diagnose-conclusie**: Beelink antwoordt alleen op ICMP; alle TCP-services (sshd, Coolify :8000) accepteren wel `SYN+ACK` maar leveren geen applicatie-response. Host is up, maar daemons/Docker hangen of zijn gestopt. Onderliggende oorzaak niet vaststelbaar zonder fysieke toegang of out-of-band shell.
+
+### Route A/B/C status
+
+- **Route A (Coolify API PATCH)**: niet geprobeerd omdat API onbereikbaar.
+- **Route B (directe DB UPDATE in `coolify-db`)**: niet geprobeerd omdat `docker exec` shell vereist.
+- **Route C (cloudflared-regel override)**: niet geprobeerd; zou alsnog shell op Beelink vereisen voor validatie.
+
+### Hypothese blijft valide maar onverifieerd
+
+De oorspronkelijke hypothese (Kong-container mist `traefik.http.routers.*.rule=Host(...)` voor `supabase-retroductus.cyberductus.nl`, analoog aan Ordo 1 engine-404) is plausibel maar kan niet bevestigd worden zonder `docker inspect kong-<uuid>`.
+
+### Cross-project impact
+
+Zelfde tunnel-1033 op **alle 5 andere Supabase-stacks** (iductus, deductus, superductus, aquaductus, ONS/conductus). Als de fix op retroductus werkt, moet hetzelfde patroon worden toegepast op:
+
+- `supabase-iductus.cyberductus.nl` (service `a13jrnulxq07jiqodticiqto`)
+- `supabase-deductus.cyberductus.nl` (service `t4qs20x5jwci8e06c3lgbsj2`)
+- `supabase-superductus.cyberductus.nl` (service `o1zp9oxvpku4g8vmqdsar6pc`)
+- `supabase-aquaductus.cyberductus.nl` (service `tprzwap5ekm23l4p60hgwg8s`)
+- plus ONS, conductus, liefdevolleblik, omniductus, mrm-connect, veriductus, interductus indien aanwezig.
+
+**Niet in deze ordo gedaan** — guardrail: alleen retroductus. Gemeld voor Ordo-opvolging door Legatus.
+
+### Users niet aangemaakt
+
+Geen API-calls naar `/auth/v1/admin/users` uitgevoerd — FQDN is nog steeds 530/1033. `supabase/seed-testers.sql` niet gedraaid. 3 user-IDs zijn er dus niet.
+
+### Verificatie-curl (laatste stand)
+
+```bash
+$ curl -skI --max-time 8 https://supabase-retroductus.cyberductus.nl/rest/v1/
+HTTP/1.1 530
+cf-mitigated: challenge-or-block
+(tunnel origin not connected)
+```
+
+### Aanbeveling Legatus
+
+1. **Eerst Beelink-health fixen** vóór volgende Supabase-tunnel-ordo: fysiek inloggen / console, `systemctl status ssh docker coolify`, `journalctl -u ssh -n 50`, `uptime`, load/mem checken. Mogelijk OOM-kill of vastgelopen cron. Reboot overwegen.
+2. Pas daarna de Kong-label-fix plannen — één keer goed uitwerken op retroductus, dan scriptmatig over de andere 5+ stacks uitrollen.
+3. Wachtwoorden voor 3 testers blijven in `c:\Projecten\.tmp\credentials-orig-5.txt` tot users daadwerkelijk aangemaakt zijn. Bestand niet wissen vóór dan.
+
+### Afwijkingen
+
+- Guardrail "bij blokker na 45 min stoppen": gerespecteerd, binnen 10 min gestopt omdat Beelink volledig onbereikbaar was en verder probeerwerk zinloos.
+- Geen `staging.page.tsx` aangeraakt.
+- Geen force-push.
+- Geen secrets in dit rapport.
