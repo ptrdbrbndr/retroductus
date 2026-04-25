@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+const ERR_TENANT_REQUIRED = 'tenant-id is verplicht voor Flowable-sync'
+const ERR_TENANT_MISMATCH =
+  'X-Tenant-Id header moet gelijk zijn aan flowable_tenant_id voor consistente sourcing.'
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -12,11 +16,30 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { db_url, flowable_tenant_id } = body
 
-  if (!db_url || !flowable_tenant_id) {
-    return NextResponse.json({ error: 'db_url en flowable_tenant_id zijn verplicht' }, { status: 400 })
+  // X-Tenant-Id header is canoniek voor Conductus-integratie. Frontend-flow
+  // (zonder Conductus) mag de header weglaten — dan valt hij terug op
+  // flowable_tenant_id uit de body.
+  const headerTenantId = request.headers.get('x-tenant-id') ?? ''
+  const tenantId = (headerTenantId || flowable_tenant_id || '').trim()
+
+  if (!tenantId) {
+    return NextResponse.json({ error: ERR_TENANT_REQUIRED }, { status: 400 })
   }
 
-  // Maak een mining_job aan in Supabase met status "pending"
+  if (
+    headerTenantId &&
+    flowable_tenant_id &&
+    headerTenantId !== flowable_tenant_id
+  ) {
+    return NextResponse.json({ error: ERR_TENANT_MISMATCH }, { status: 400 })
+  }
+
+  if (!db_url) {
+    return NextResponse.json({ error: 'db_url is verplicht' }, { status: 400 })
+  }
+
+  // Maak een mining_job aan in Supabase met status "pending" + Conductus-label
+  // (label-only, RLS blijft op user_id).
   const { data: job, error: jobError } = await supabase
     .from('mining_jobs')
     .insert({
@@ -24,7 +47,8 @@ export async function POST(request: NextRequest) {
       tenant_id: user.id,
       status: 'pending',
       source: 'flowable',
-      filename: `flowable:${flowable_tenant_id}`,
+      filename: `flowable:${tenantId}`,
+      conductus_tenant_id: headerTenantId || null,
     })
     .select('id')
     .single()
@@ -38,17 +62,22 @@ export async function POST(request: NextRequest) {
   const engineUrl = process.env.MINING_ENGINE_URL
   const engineSecret = process.env.MINING_ENGINE_SECRET
 
-  // Stuur naar engine (fire-and-forget — engine verwerkt asynchroon)
+  // Stuur naar engine met X-Tenant-Id header (indien aanwezig)
+  const engineHeaders: Record<string, string> = {
+    Authorization: `Bearer ${engineSecret}`,
+    'Content-Type': 'application/json',
+  }
+  if (headerTenantId) {
+    engineHeaders['X-Tenant-Id'] = headerTenantId
+  }
+
   const engineResponse = await fetch(`${engineUrl}/connectors/flowable/sync`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${engineSecret}`,
-      'Content-Type': 'application/json',
-    },
+    headers: engineHeaders,
     body: JSON.stringify({
       job_id,
       tenant_id: user.id,
-      flowable_tenant_id,
+      flowable_tenant_id: tenantId,
       db_url,
     }),
   })

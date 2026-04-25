@@ -1,6 +1,7 @@
 import os
 import logging
-from fastapi import APIRouter, Security, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Security, HTTPException, Header, Request
 from pydantic import BaseModel
 from supabase import create_client
 
@@ -14,6 +15,10 @@ router = APIRouter()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+ERR_TENANT_MISMATCH = (
+    "X-Tenant-Id header en flowable_tenant_id moeten gelijk zijn voor consistente sourcing."
+)
 
 
 class FlowableTestRequest(BaseModel):
@@ -48,15 +53,28 @@ def flowable_test(
         raise HTTPException(status_code=400, detail="Verbinding mislukt. Controleer de connection string.")
 
 
-def _run_flowable_job(job_id: str, flowable_tenant_id: str, db_url: str) -> None:
-    """Voer de analyse uit met expliciete db_url en sla resultaat op in Supabase."""
+def _run_flowable_job(
+    job_id: str,
+    flowable_tenant_id: str,
+    db_url: str,
+    conductus_tenant_id: Optional[str] = None,
+) -> None:
+    """Voer de analyse uit met expliciete db_url en sla resultaat op in Supabase.
+
+    conductus_tenant_id is een optioneel sourcing-label (Conductus-integratie).
+    Het wordt opgeslagen op mining_jobs.conductus_tenant_id maar speelt geen rol
+    in toegangscontrole (RLS gebruikt user_id).
+    """
     import concurrent.futures
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     TIMEOUT = 120
 
     try:
-        supabase.table("mining_jobs").update({"status": "running"}).eq("id", job_id).execute()
+        update_payload: dict = {"status": "running"}
+        if conductus_tenant_id:
+            update_payload["conductus_tenant_id"] = conductus_tenant_id
+        supabase.table("mining_jobs").update(update_payload).eq("id", job_id).execute()
 
         df = extract_event_log(flowable_tenant_id, db_url=db_url)
 
@@ -95,13 +113,27 @@ def _run_flowable_job(job_id: str, flowable_tenant_id: str, db_url: str) -> None
 @router.post("/flowable/sync")
 def flowable_sync(
     req: FlowableSyncRequest,
+    request: Request,
     _token: str = Security(verify_token),
+    x_tenant_id: Optional[str] = Header(default=None, alias="X-Tenant-Id"),
 ):
-    """Start een Flowable-sync job als achtergrondtaak."""
+    """Start een Flowable-sync job als achtergrondtaak.
+
+    Optionele header X-Tenant-Id labelt de mining_job met de Conductus-tenant
+    die de sync triggerde (sourcing-tracking, geen toegangscontrole). Wanneer
+    de header aanwezig is moet hij gelijk zijn aan req.flowable_tenant_id om
+    inconsistente sourcing-labels te voorkomen.
+    """
+    conductus_tenant_id: Optional[str] = None
+    if x_tenant_id:
+        if x_tenant_id != req.flowable_tenant_id:
+            raise HTTPException(status_code=400, detail=ERR_TENANT_MISMATCH)
+        conductus_tenant_id = x_tenant_id
+
     import threading
     thread = threading.Thread(
         target=_run_flowable_job,
-        args=(req.job_id, req.flowable_tenant_id, req.db_url),
+        args=(req.job_id, req.flowable_tenant_id, req.db_url, conductus_tenant_id),
         daemon=True,
     )
     thread.start()
