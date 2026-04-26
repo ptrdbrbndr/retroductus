@@ -8,7 +8,7 @@ dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const TEST_USER_EMAIL = 'test@retroductus.nl'
+const TEST_USER_EMAIL = process.env.VIBE_TEST_USER || 'pieter@debrabander.com'
 
 // SSE-eerste-chunk-budget. Engine moet binnen deze tijd het eerste
 // `data: ...\n\n` frame leveren via Anthropic streaming. 3000ms is de norm
@@ -80,12 +80,9 @@ async function deleteJob(admin: SupabaseClient, jobId: string): Promise<void> {
 }
 
 test.describe('Ordo 7 — AI-insights SSE-stream eerste chunk binnen budget', () => {
-  // Lokaal kunnen we deze happy-path niet draaien: Supabase Cloud-URL in .env.local
-  // is uitgefaseerd (Ordo 4-rapport, fresh-start naar Beelink-Supabase achter
-  // Cloudflare Access). De engine zelf zit ook achter CF Access. Canonieke validatie
-  // gebeurt op staging-deploy via de rapport-curl in
-  // docs/agent-log/2026-04-26-ordo-7-ai-insights-sse.md (zie §Verificatie).
-  // Zelfde pragmatische aanpak als fase2-01 en fase2-04.
+  // BLOKKER (Ordo 8, 2026-04-26): `supabase-retroductus.cyberductus.nl` geeft
+  // 404 op CF-edge — tunnel-ingress mist deze hostname. Test blijft fixme tot
+  // CF-tunnel-config hersteld is. Zie agent-log/2026-04-26-ordo-8-vibe-baseline.md.
   test.fixme(
     '/api/insights levert eerste SSE-chunk binnen 3.5s tegen echte Anthropic-key',
     async ({ vibePage }) => {

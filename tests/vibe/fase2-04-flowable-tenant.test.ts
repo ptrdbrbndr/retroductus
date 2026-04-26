@@ -23,11 +23,9 @@ function adminClient() {
 }
 
 test.describe('Ordo 6 — Conductus X-Tenant-Id contract op Flowable-sync', () => {
-  // Lokale auth-state.json is van de verwijderde Cloud-Supabase
-  // (`ttfgpbuievkuiwdhmtaz`). De Beelink-Supabase achter Cloudflare Access
-  // is lokaal niet bereikbaar. Deze happy-path-test valideren we via
-  // staging-deploy + curl uit de rapport-sectie. Zie fase2-01 voor zelfde
-  // pragmatische aanpak.
+  // BLOKKER (Ordo 8, 2026-04-26): `supabase-retroductus.cyberductus.nl` geeft
+  // 404 op CF-edge — tunnel-ingress mist deze hostname. Test blijft fixme tot
+  // CF-tunnel-config hersteld is. Zie agent-log/2026-04-26-ordo-8-vibe-baseline.md.
   test.fixme(
     'flowable-sync stempelt mining_jobs.conductus_tenant_id met header-waarde',
     async ({ vibePage }) => {
