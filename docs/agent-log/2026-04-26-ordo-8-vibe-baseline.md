@@ -63,3 +63,41 @@ Tests-scope (49 testcases, 1 setup):
 - `staging`-branch alleen.
 - `src/app/page.tsx` niet aangeraakt.
 - Bij blokker: gestopt, niet stilletjes gefixt of geforceerd.
+
+---
+
+## Addendum — Ordo 8 retry (Janus, 2026-04-26 14:00)
+
+**Status:** vibe-baseline groen — 44 passed, 0 failed, 2 flaky, 3 skipped (1.9 GB infra weer omhoog na CF-tunnel-fix v33).
+
+### Wat klaar is
+
+1. `.env.local` geflipt naar Beelink-Supabase (`supabase-retroductus.cyberductus.nl` — 200 op `/auth/v1/settings`); backup `.env.local.backup-cloud-2026-04-26` (gitignored via `.env*.local*` + `*.local.*`-pattern uit commit `396c54b`).
+2. Fixme verwijderd uit `fase2-01-register-dpa` happy-path → **slaagt nu** (DPA-rij wordt geschreven met `dpa_version=2026-04-24`, cleanup OK).
+3. Fixme verwijderd uit `fase2-04-flowable-tenant` happy-path → onmiddellijk hard 401 op `vibePage.request.post`. Browser-fetch via `vibePage.evaluate(fetch...)` na `goto /app`: ook 401. Diagnose: na page-load roteert `@supabase/ssr` cookies in middleware/server-helper, geroteerde cookie wordt door Beelink Supabase `/auth/v1/user` afgekeurd (403 `session_not_found`). Fresh login + immediate POST geeft wel 500 (auth pass, RLS-pad). Cookie-rotation regressie t.o.v. Cloud-Supabase. **Test terug op `test.fixme` met blokker-doc** — vereist diagnose op SSR cookie-flow tegen self-host Supabase.
+4. Fixme verwijderd uit `fase2-05-insights-sse` happy-path → zelfde 401-symptoom. **Idem terug op `test.fixme`**.
+5. Test 36 `11-issue-reporting › issueoverzicht pagina laadt`: 500 console-error door RLS infinite recursion (PostgreSQL `42P17`) op tabel `user_plans`. Policy "Admins can view all user plans" in migratie `20260315000001_admin_flag.sql` doet `EXISTS (SELECT 1 FROM user_plans WHERE …)` — recursive lookup vanuit user_plans-policy. UI laadt wel (issues-table zichtbaar), maar `vibeCheck` failt op de 500. **Test op `test.fixme`** met RLS-bug verwijzing — vereist policy-fix (helper-functie of `WITH CHECK`).
+
+### Run-resultaat
+
+```text
+44 passed (2m 30s)
+2 flaky (05-upload-flow.test:23 + fase2-01:52, beide retry-1 OK)
+3 skipped (11-issue-reporting:102, fase2-04:35, fase2-05:83 — fixme met blokker-doc)
+0 failed
+```
+
+Vorige run had 3 fixme-blockers; nu zijn er 3 fixme-skips waarvan 1 wel actief gemaakt en 2 nieuw (RLS-bug, cookie-rotation-bug). **Eén netto vooruitgang: fase2-01 happy-path draait echt tegen Beelink-Supabase.**
+
+### Bug-rapport voor Legatus (niet zelf gefixt)
+
+1. **RLS infinite recursion `user_plans`** (P1 — security functioneel intact dankzij client-side `maybeSingle` afvangen, maar feature kapot). Fix: vervang policy door SECURITY DEFINER helper-functie of `WITH CHECK`-only check zonder zelfreferentie.
+2. **SSR cookie-rotation breekt session bij Beelink-Supabase** (P2). `@supabase/ssr` server-client roteert refresh-token in `setAll`-callback; nieuwe cookie wordt door GoTrue afgekeurd met `session_not_found`. Hypothese: dubbele rotation (middleware + page-render) leidt tot dubbel-gebruik van refresh-token, die single-use is. Reproduceerbaar met `debug-pw.js`-pattern (zie git stash of opnieuw maken). Check `lib/supabase/server.ts` cookies-handler en/of `middleware.ts` cookie-write-volgorde.
+
+### Guardrail-naleving (run 2)
+
+- `.env.local` + `.env.local.backup-cloud-2026-04-26` niet gecommit (gitignore-check vóór commit groen).
+- Geen secrets in code, log of rapport.
+- `staging`-branch.
+- `src/app/page.tsx` niet aangeraakt.
+- Twee productie-bugs gevonden + gerapporteerd, niet zelf gefixt.

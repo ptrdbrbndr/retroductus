@@ -80,9 +80,11 @@ async function deleteJob(admin: SupabaseClient, jobId: string): Promise<void> {
 }
 
 test.describe('Ordo 7 — AI-insights SSE-stream eerste chunk binnen budget', () => {
-  // BLOKKER (Ordo 8, 2026-04-26): `supabase-retroductus.cyberductus.nl` geeft
-  // 404 op CF-edge — tunnel-ingress mist deze hostname. Test blijft fixme tot
-  // CF-tunnel-config hersteld is. Zie agent-log/2026-04-26-ordo-8-vibe-baseline.md.
+  // BLOKKER (Ordo 8 retry, 2026-04-26): zelfde auth-cookie-rotation issue
+  // als fase2-04. POST naar `/api/insights` geeft 401 ondanks geldige
+  // page-context cookies; SSR-helper roteert de cookie en de geroteerde
+  // versie wordt door Beelink-Supabase /auth/v1/user afgekeurd
+  // (session_not_found, 403). Vereist SSR cookie-flow diagnose.
   test.fixme(
     '/api/insights levert eerste SSE-chunk binnen 3.5s tegen echte Anthropic-key',
     async ({ vibePage }) => {
@@ -93,28 +95,36 @@ test.describe('Ordo 7 — AI-insights SSE-stream eerste chunk binnen budget', ()
       await seedDoneJob(admin, userId, jobId)
 
       try {
+        await vibePage.goto('/app')
+        await vibePage.waitForLoadState('networkidle')
+
         const startedAt = Date.now()
-        const response = await vibePage.request.post('/api/insights', {
-          headers: { 'Content-Type': 'application/json' },
-          data: { job_id: jobId, force_refresh: true },
-          timeout: 15000,
-        })
-
-        expect(response.status(), 'engine moet 200 streamen, geen 5xx').toBe(200)
-        expect(response.headers()['content-type']).toContain('text/event-stream')
-
-        // Lees de stream byte-voor-byte tot het eerste `data: ` frame binnen is.
-        const body = await response.body()
+        const result = await vibePage.evaluate(
+          async ({ jid }) => {
+            const r = await fetch('/api/insights', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ job_id: jid, force_refresh: true }),
+            })
+            const ct = r.headers.get('content-type') || ''
+            const text = await r.text()
+            return { status: r.status, contentType: ct, text }
+          },
+          { jid: jobId },
+        )
         const firstChunkAt = Date.now() - startedAt
-        const text = body.toString('utf8')
-        const firstFrame = text.split('\n\n').find(f => f.startsWith('data: '))
+
+        expect(result.status, 'engine moet 200 streamen, geen 5xx').toBe(200)
+        expect(result.contentType).toContain('text/event-stream')
+
+        const firstFrame = result.text.split('\n\n').find(f => f.startsWith('data: '))
 
         expect(firstFrame, 'eerste SSE-frame moet bestaan').toBeTruthy()
         expect(firstChunkAt).toBeLessThan(FIRST_CHUNK_BUDGET_MS)
 
         // Geen interne stack-trace lekken in de body (OWASP ASVS L1).
-        expect(text).not.toContain('Traceback')
-        expect(text).not.toMatch(/at .*\.py:\d+/)
+        expect(result.text).not.toContain('Traceback')
+        expect(result.text).not.toMatch(/at .*\.py:\d+/)
 
         await vibePage.vibeCheck('insights-sse-first-chunk')
       } finally {

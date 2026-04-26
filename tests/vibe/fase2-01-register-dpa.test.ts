@@ -71,10 +71,7 @@ test.describe('Ordo 3 — DPA-acceptatie verplicht in register', () => {
     expect(errorText.toLowerCase()).toContain('verwerkersovereenkomst')
   })
 
-  // BLOKKER (Ordo 8, 2026-04-26): `supabase-retroductus.cyberductus.nl` geeft
-  // 404 op CF-edge — tunnel-ingress mist deze hostname. Test blijft fixme tot
-  // Pieter/CF-tunnel-config hersteld is. Zie agent-log/2026-04-26-ordo-8-vibe-baseline.md.
-  test.fixme('submit met DPA-vinkje schrijft rij in dpa_acceptance met actuele dpa_version', async ({ vibePage }) => {
+  test('submit met DPA-vinkje schrijft rij in dpa_acceptance met actuele dpa_version', async ({ vibePage }) => {
     const email = uniqueEmail()
     const password = 'VibeTest2026!'
 

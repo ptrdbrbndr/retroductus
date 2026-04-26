@@ -23,28 +23,45 @@ function adminClient() {
 }
 
 test.describe('Ordo 6 — Conductus X-Tenant-Id contract op Flowable-sync', () => {
-  // BLOKKER (Ordo 8, 2026-04-26): `supabase-retroductus.cyberductus.nl` geeft
-  // 404 op CF-edge — tunnel-ingress mist deze hostname. Test blijft fixme tot
-  // CF-tunnel-config hersteld is. Zie agent-log/2026-04-26-ordo-8-vibe-baseline.md.
+  // BLOKKER (Ordo 8 retry, 2026-04-26): Authenticated POST naar
+  // `/api/flowable-sync` levert 401 op zowel `vibePage.request.post` als
+  // `vibePage.evaluate(fetch...)` na een page-goto. Beelink-Supabase SSR-cookie
+  // (via @supabase/ssr) wordt na page-load geroteerd, maar de geroteerde
+  // cookie wordt door de Next.js auth.getUser()-call afgekeurd
+  // (`/auth/v1/user → 403 session_not_found`). Werkt wel met een verse direct
+  // ingelogde context (debug-pw2.js bewees: 500 ipv 401). Verschilt van
+  // Cloud-Supabase-flow waar dit eerder fixme was. Vereist diagnose op SSR
+  // cookie-rotation tegen self-host Supabase — buiten Janus-scope.
   test.fixme(
     'flowable-sync stempelt mining_jobs.conductus_tenant_id met header-waarde',
     async ({ vibePage }) => {
-      const response = await vibePage.request.post('/api/flowable-sync', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant-Id': TENANT_ID,
-        },
-        data: {
-          db_url: DUMMY_DB_URL,
-          flowable_tenant_id: TENANT_ID,
-        },
-      })
+      await vibePage.goto('/app')
+      await vibePage.waitForLoadState('networkidle')
 
-      expect([200, 202, 500]).toContain(response.status())
+      const result = await vibePage.evaluate(
+        async ({ tenantId, dbUrl }) => {
+          const r = await fetch('/api/flowable-sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': tenantId,
+            },
+            body: JSON.stringify({ db_url: dbUrl, flowable_tenant_id: tenantId }),
+          })
+          const text = await r.text()
+          return { status: r.status, text }
+        },
+        { tenantId: TENANT_ID, dbUrl: DUMMY_DB_URL },
+      )
 
-      const body = await response.json().catch(() => ({}))
+      expect([200, 202, 500]).toContain(result.status)
+
+      let body: { job_id?: string } = {}
+      try {
+        body = JSON.parse(result.text)
+      } catch {}
       const jobId: string | undefined = body.job_id
-      expect(jobId).toBeTruthy()
+      expect(jobId, 'engine of route moet job_id retourneren').toBeTruthy()
 
       const admin = adminClient()
       const { data, error } = await admin
