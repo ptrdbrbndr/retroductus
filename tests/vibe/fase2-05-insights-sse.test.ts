@@ -80,11 +80,11 @@ async function deleteJob(admin: SupabaseClient, jobId: string): Promise<void> {
 }
 
 test.describe('Ordo 7 — AI-insights SSE-stream eerste chunk binnen budget', () => {
-  // BLOKKER (Ordo 8 retry, 2026-04-26): zelfde auth-cookie-rotation issue
-  // als fase2-04. POST naar `/api/insights` geeft 401 ondanks geldige
-  // page-context cookies; SSR-helper roteert de cookie en de geroteerde
-  // versie wordt door Beelink-Supabase /auth/v1/user afgekeurd
-  // (session_not_found, 403). Vereist SSR cookie-flow diagnose.
+  // BLOKKER (Ordo 8b, 2026-04-26): SSR-cookie-rotation Bug 2 gefixt.
+  // Auth-flow werkt nu (geen 401 meer). Resterend symptoom: engine
+  // retourneert 500 ({"detail":"Interne serverfout"}) op /insights/ai —
+  // vermoedelijk Anthropic-key-issue of engine-state. Vereist aparte
+  // engine-diagnose, los van auth-bug.
   test.fixme(
     '/api/insights levert eerste SSE-chunk binnen 3.5s tegen echte Anthropic-key',
     async ({ vibePage }) => {

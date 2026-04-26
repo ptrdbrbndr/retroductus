@@ -23,15 +23,12 @@ function adminClient() {
 }
 
 test.describe('Ordo 6 — Conductus X-Tenant-Id contract op Flowable-sync', () => {
-  // BLOKKER (Ordo 8 retry, 2026-04-26): Authenticated POST naar
-  // `/api/flowable-sync` levert 401 op zowel `vibePage.request.post` als
-  // `vibePage.evaluate(fetch...)` na een page-goto. Beelink-Supabase SSR-cookie
-  // (via @supabase/ssr) wordt na page-load geroteerd, maar de geroteerde
-  // cookie wordt door de Next.js auth.getUser()-call afgekeurd
-  // (`/auth/v1/user → 403 session_not_found`). Werkt wel met een verse direct
-  // ingelogde context (debug-pw2.js bewees: 500 ipv 401). Verschilt van
-  // Cloud-Supabase-flow waar dit eerder fixme was. Vereist diagnose op SSR
-  // cookie-rotation tegen self-host Supabase — buiten Janus-scope.
+  // BLOKKER (Ordo 8b, 2026-04-26): SSR-cookie-rotation Bug 2 is gefixt
+  // (commit op staging — middleware request.cookies.set met options) +
+  // RLS infinite recursion Bug 1 is gefixt (migratie 20260426000002).
+  // Auth-flow werkt nu (geen 401 meer). Resterend symptoom: insert op
+  // mining_jobs faalt met 500 (`Kon job niet aanmaken`) — vermoedelijk
+  // een ander RLS-pad of missende kolom. Vereist aparte diagnose.
   test.fixme(
     'flowable-sync stempelt mining_jobs.conductus_tenant_id met header-waarde',
     async ({ vibePage }) => {
