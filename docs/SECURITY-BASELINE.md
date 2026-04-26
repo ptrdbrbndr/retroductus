@@ -9,6 +9,22 @@ Verwerkt bedrijfsprocessen en event logs van klanten. Deze data is vertrouwelijk
 
 ---
 
+> **Doc-revalidatie — 2026-04-26.** Deze baseline was geschreven in Fase 0 (2026-03-13, commit 35fefb2). Het project staat per heden op **Fase 2 oplevering — intern testen actief** (commit ec6a59f). Onderstaande status-tabellen geven nog "⬜ bouwen" aan op items die inmiddels grotendeels ingericht zijn; bevestig elk item via code-review vóór externe pre-flight of audit. Belangrijke architectuur- en security-shifts sinds 35fefb2:
+>
+> - **Hosting verschoven** — Engine + Frontend draaien op **Beelink/Coolify**; Railway- en Vercel-projecten zijn uitgefaseerd (commit cfdcf3d, ordo-10). Engine-FQDN: `retroductus-engine.cyberductus.nl`. Frontend: `retroductor.nl` direct via CF Tunnel.
+> - **Self-host Supabase** op Beelink (FQDN `supabase-retroductus.cyberductus.nl`, credentials in `credentials.md`)
+> - **CF Access met e-mail-allowlist** (Pieter + 2 testers) — toegang tot intern testen
+> - **RLS-bug user_plans admin-policy infinite recursion** opgelost (commit 8b673c8) + SSR cookie-rotation fix (commit 267ad7e); ordo-8b bugfix-rapport in `docs/agent-log/`
+> - **Conductus X-Tenant-Id contract** geïmplementeerd op Flowable-connector (commit 02fb047, ordo-6 rapport) — wachtende op Concordius voor Conductus-zijde
+> - **AI-insights SSE end-to-end** — vibe-test stream eerste chunk binnen 3.5s (commit 1f1045c, ordo-7)
+> - **Stripe prep-only scaffold** (501-stubs, niet aangesloten — Fase 3, commit 14070ec)
+> - **Retention cleanup-functie** ingericht (niet geactiveerd, commit 42889b9)
+> - **DPA-acceptatie** verplicht in register (zie `docs/DPA.md` + `docs/staging-users.md`)
+>
+> Inhoudelijke regels (HOOG-niveau, OWASP ASVS L1, ISO 27001) blijven geldig. Status-cellen hieronder zijn niet stuk-voor-stuk geverifieerd in deze revalidatie — pak een code-review-pass vóór een externe audit, of volg de Fase-2-blokkers in `docs/agent-log/` voor de canonieke up-to-date status.
+
+---
+
 ## Architectuur security (bouw dit in vanaf het begin)
 
 ### Multi-tenant event log isolatie
