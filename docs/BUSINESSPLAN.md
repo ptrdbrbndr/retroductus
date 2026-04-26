@@ -1,5 +1,11 @@
 # Businessplan — Retroductus
 
+## Status
+
+**Fase 2 — intern testen actief** (sinds 2026-04-26).
+
+Productie-app live op `retroductor.nl` (Beelink/Coolify, achter Cloudflare Access). Engine + frontend self-hosted, Supabase gemigreerd naar Beelink, DPA-acceptatie verplicht in registratieflow, Stripe-stub aanwezig (501, geen live Price ID), AI-insights SSE-keten geverifieerd, vibe-baseline 46/0/3 groen, Railway + Vercel uitgefaseerd (14d grace). Twee externe testers + Pieter (admin) geseed. Volledige Definition of Done in [`STAPPENPLAN.md`](STAPPENPLAN.md) § Fase 2.
+
 ## Samenvatting
 
 Retroductus is een process mining SaaS-platform dat organisaties inzicht geeft in hoe hun processen werkelijk verlopen — op basis van feitelijke event log-data. Het platform combineert een Python/PM4Py mining engine met een Next.js gebruikersinterface en integreert native met Conductus (CMMN), maar is ook zelfstandig inzetbaar voor organisaties die werken met Flowable, Camunda, SAP of handmatig geëxporteerde event logs.

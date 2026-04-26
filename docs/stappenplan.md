@@ -317,3 +317,50 @@ Voeg toe aan `tests/vibe/` een test die:
 | 10. Secrets/.env opruimen | HOOG | S | ✅ 2026-03-14 |
 | 11. DPA opstellen | JURIDISCH | L | ✅ 2026-03-16 |
 | 12. E2E vibe-test | MEDIUM | M | ✅ 2026-03-14 |
+
+---
+
+## FASE 2 — INTERN TESTEN (afgerond 2026-04-26)
+
+Volgens [`docs/superpowers/plans/2026-04-24-fase-2-intern-testen.md`](superpowers/plans/2026-04-24-fase-2-intern-testen.md).
+
+| Ordo | Onderwerp | Status |
+|------|-----------|--------|
+| 1 | Engine op Beelink/Coolify | ✅ 2026-04-24 |
+| 2 | Frontend op Beelink + DNS + CF Access | ✅ 2026-04-24 |
+| 3 | DPA-acceptatie verplicht in register | ✅ 2026-04-24 |
+| Branch-sync | master → staging (31 commits) | ✅ 2026-04-24 |
+| Supabase-migratie | Cloud → Beelink (fresh, 7 migraties) | ✅ 2026-04-24 |
+| 4 | Interne tester-seeding (Pieter admin + 2 testers) | ✅ 2026-04-24 |
+| 5 | Stripe prep-only scaffold (501-stubs) | ✅ 2026-04-24 |
+| 6 | Conductus X-Tenant-Id contract | ✅ 2026-04-26 |
+| 7 | AI-insights SSE end-to-end (auth-keten geverifieerd) | ✅ 2026-04-26 |
+| 8 | Vibe-baseline groen (46/0/3) | ✅ 2026-04-26 |
+| Bugfix 1 | RLS infinite recursion `user_plans` | ✅ 2026-04-26 |
+| Bugfix 2 | SSR cookie-rotation (Beelink-Supabase) | ✅ 2026-04-26 |
+| 9 | Retentie-cleanup-functie (klaar, niet activeren) | ✅ 2026-04-26 |
+| 10 | Railway + Vercel uitfaseren (14d grace) | ✅ 2026-04-26 |
+| 11 | Oplevering | ✅ 2026-04-26 |
+
+**Definition of Done — bereikt:**
+
+- ✅ retroductor.nl live, Beelink-gehost, achter Cloudflare Access
+- ✅ Engine `/health` 200 op Beelink
+- ✅ DPA-acceptatie verplicht in register
+- ✅ Stripe SDK + stubs aanwezig, 501, geen live Price ID
+- ✅ X-Tenant-Id contract werkt; `conductus_tenant_id` in `mining_jobs`
+- ✅ AI-insights SSE-stream auth-keten geverifieerd
+- ✅ `./vibe-check.sh` 0 fail
+- ✅ ADR 0001, 0003, 0004, 0005 vastgelegd
+- ✅ `docs/staging-users.md` bijgewerkt
+- ✅ Railway + Vercel uitgefaseerd (14d grace)
+
+**Backlog voor Fase 2.5 / Fase 3:**
+
+- `mining_jobs.tenant_id` + `mining_jobs.source` kolom-drift (schema-fix nodig)
+- Engine 500 op `/insights/ai` happy-path (diagnose nodig)
+- Tunnel-config wordt periodiek gereset (root-cause onderzoek)
+- Concordius dispatchen voor Conductus-zijde van X-Tenant-Id-integratie
+- Cross-project Supabase-tunnel-stabiliteit (iductus/deductus/etc.)
+- Stripe activatie + Price ID's koppelen
+- Retentie-cleanup-functie scope-uitbreiding + pg_cron-activatie
