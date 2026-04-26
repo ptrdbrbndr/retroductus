@@ -16,6 +16,8 @@ __pycache__/
 playwright-report/
 test-results/
 testing/vibe-core/auth-state.json
+testing/vibe-core/screenshots/
+tests/vibe/_fixtures/*.csv
 
 # Supabase temp
 supabase/.temp/
